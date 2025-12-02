@@ -4,7 +4,7 @@ import json
 import numpy as np
 
 from gridworld import GridWorld
-from algorithms import value_iteration, vi_policy
+from src.algorithms import value_iteration, vi_policy
 
 if __name__ == '__main__':
     np.random.seed(10015)
