@@ -14,8 +14,8 @@ if __name__ == '__main__':
     num_repeats = 1
     num_states = 127
     num_actions = 4
-    num_latents = 4
-    
+    num_latents = 3
+
     np.random.seed(42)
     torch.manual_seed(42)
 
