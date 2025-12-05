@@ -327,113 +327,60 @@ class PGIAVI:
             phi[s, a] = 1
             phis.append(phi.flatten())
         phis = torch.as_tensor(np.array(phis), dtype=torch.float32)
-        return phis  # (T, phi_dim)
+        return phis  # (B, phi_dim)
     
-    def prepare_batch_data(self, agents):
-        batch_phis = []
-        batch_target_gamma = []
+    def prepare_pooled_data(self, agents):
+        pooled_phis = []
+        pooled_target_gamma = []
         
         for traj in self.train_trajs:
-            phis = self.encode_session_traj(traj)
-            log_pi = self.get_log_pi(traj, agents)
+            phis = self.encode_session_traj(traj)  # (B_i, phi_dim)
+            log_pi = self.get_log_pi(traj, agents)  # (K, B_i)
             
             with torch.no_grad():
                 target_log_gamma, _ = self.intention_mapping(phis, log_pi)
-                target_gamma = torch.exp(target_log_gamma)
+                target_gamma = torch.exp(target_log_gamma)  # (B_i, K)
             
-            batch_phis.append(phis)
-            batch_target_gamma.append(target_gamma)
+            pooled_phis.append(phis)
+            pooled_target_gamma.append(target_gamma)
         
-        batch_phis = torch.stack(batch_phis, dim=0)  # (B, T, phi_dim)
-        batch_target_gamma = torch.stack(batch_target_gamma, dim=0)  # (B, T, K)
+        pooled_phis = torch.cat(pooled_phis, dim=0)  # (total_Batch, phi_dim)
+        pooled_target_gamma = torch.cat(pooled_target_gamma, dim=0)  # (total_Batch, K)
         
-        return batch_phis, batch_target_gamma
+        return pooled_phis, pooled_target_gamma
     
-    def train_intention_network_batched(self, agents, num_epochs=1):
+    def train_intention_network_batched(self, agents, batch_size=256, num_epochs=1):
         """
-        :param agents: List of IAVI agents
-        :param num_epochs: Number of passes through the data
-        """
-        batch_phis, batch_target_gamma = self.prepare_batch_data(agents)
+        Train intention network with random mini-batches from the pool.
         
-        total_loss = 0
-        for epoch in range(num_epochs):
-            self.optimizer.zero_grad()
-            
-            pred_logits = self.intention_net(batch_phis)  # (B, T, K)
-            pred_logf = torch.log_softmax(pred_logits, dim=-1)  # (B, T, K)
-            
-            # Compute loss: negative log-likelihood
-            loss = -(batch_target_gamma * pred_logf).sum(dim=-1).mean()  # Average over batch and time
-            
-            loss.backward()
-            self.optimizer.step()
-            total_loss += loss.item()
-        
-        return total_loss / num_epochs
-    
-    def train_intention_network_minibatch(self, agents, batch_size=32, num_epochs=1):
-        """
+        Args:
             agents: List of IAVI agents
-            batch_size: Number of trajectories per mini-batch
-            num_epochs: Number of passes through the data
+            batch_size: Size of mini-batches to sample from pool
+            num_epochs: Number of passes through the pooled data
+        Returns:
+            Average loss
         """
-        num_trajs = len(self.train_trajs)
+        pooled_phis, pooled_target_gamma = self.prepare_pooled_data(agents)
+        total_samples = pooled_phis.size(0)
+        
         total_loss = 0
         num_batches = 0
         
         for epoch in range(num_epochs):
-            # Shuffle trajectory indices
-            indices = torch.randperm(num_trajs)
+            # Shuffle indices
+            indices = torch.randperm(total_samples)
             
-            for i in range(0, num_trajs, batch_size):
+            for i in range(0, total_samples, batch_size):
                 batch_indices = indices[i:i+batch_size]
                 
-                # Prepare mini-batch
-                batch_phis = []
-                batch_log_pi = []
-                batch_target_gamma = []
-                lengths = []
+                # Sample mini-batch from pool
+                batch_phis = pooled_phis[batch_indices]
+                batch_target_gamma = pooled_target_gamma[batch_indices]
                 
-                for idx in batch_indices:
-                    traj = self.train_trajs[idx]
-                    phis = self.encode_session_traj(traj)
-                    log_pi = self.get_log_pi(traj, agents)
-                    
-                    with torch.no_grad():
-                        target_log_gamma, _ = self.intention_mapping(phis, log_pi)
-                        target_gamma = torch.exp(target_log_gamma)
-                    
-                    batch_phis.append(phis)
-                    batch_log_pi.append(log_pi.T)
-                    batch_target_gamma.append(target_gamma)
-                    lengths.append(len(traj))
-                
-                # Pad sequences
-                padded_phis = pad_sequence(batch_phis, batch_first=True)
-                padded_target_gamma = pad_sequence(batch_target_gamma, batch_first=True)
-                lengths = torch.tensor(lengths)
-                
-                # Forward pass
                 self.optimizer.zero_grad()
-                
-                packed_phis = pack_padded_sequence(
-                    padded_phis, 
-                    lengths.cpu(), 
-                    batch_first=True, 
-                    enforce_sorted=False
-                )
-                packed_output = self.intention_net(packed_phis)
-                unpacked_output, _ = pad_packed_sequence(packed_output, batch_first=True)
-                pred_logf = torch.log_softmax(unpacked_output, dim=-1)
-                
-                # Compute masked loss
-                max_len = padded_phis.size(1)
-                mask = torch.arange(max_len).unsqueeze(0) < lengths.unsqueeze(1)
-                loss_per_step = -(padded_target_gamma * pred_logf).sum(dim=-1)
-                loss_per_step = loss_per_step * mask
-                loss = loss_per_step.sum() / lengths.sum()
-                
+                pred_logits = self.intention_net(batch_phis)  # (batch_size, K)
+                pred_logf = torch.log_softmax(pred_logits, dim=-1)
+                loss = -(batch_target_gamma * pred_logf).sum(dim=-1).mean()
                 loss.backward()
                 self.optimizer.step()
                 
