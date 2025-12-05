@@ -31,7 +31,7 @@ class StatesRNN(nn.Module):
             hidden_size=rnn_hidden_dim,
             num_layers=num_layers,
             batch_first=True,
-            dropout=0.0
+            dropout=0.1 if num_layers > 1 else 0.0
         )
         
         self.output_proj = nn.Linear(rnn_hidden_dim, num_latents)

@@ -19,6 +19,13 @@ if __name__ == '__main__':
     np.random.seed(42)
     torch.manual_seed(42)
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # Reproducibility settings for CUDA (when available)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(42)
+
     output_dir = f'outputs/labyrinth_train'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -32,7 +39,8 @@ if __name__ == '__main__':
 
     len_trajs = len(trajs)
     kf = KFold(n_splits=num_folds, shuffle=True, random_state=10015)
-    for num_trajs in np.arange(37, len_trajs, 50):
+    # for num_trajs in np.arange(37, len_trajs, 50):
+    for num_trajs in [57, 107, 167, 237]:
         for kf_idx, (train_idxes, test_idxes) in enumerate(kf.split(trajs[:num_trajs])):
             train_trajs = [trajs[train_idx] for train_idx in train_idxes]
             test_trajs = [trajs[test_idx] for test_idx in test_idxes]

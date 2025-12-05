@@ -1,5 +1,7 @@
 import numpy as np
 import torch
+import time
+
 from scipy.special import logsumexp
 from model.intention import IntentionNet, StatesRNN
 
@@ -131,10 +133,10 @@ class IAVI:
             delta = 0
             for s in range(self.num_states):
                 tp = self.P[s, :, :]
-                eta = np.log(self.expert_policy[s, :] + self.epsilon) - self.discount * np.matmul(
-                    tp.T, logsumexp(self.q, axis=1).reshape(-1, 1)).reshape(-1)
                 # eta = np.log(self.expert_policy[s, :] + self.epsilon) - self.discount * np.matmul(
-                #     tp.T, np.max(self.q, axis=1).reshape(-1, 1)).reshape(-1)
+                #     tp.T, logsumexp(self.q, axis=1).reshape(-1, 1)).reshape(-1)
+                eta = np.log(self.expert_policy[s, :] + self.epsilon) - self.discount * np.matmul(
+                    tp.T, np.max(self.q, axis=1).reshape(-1, 1)).reshape(-1)
 
                 Y = np.zeros(self.num_actions)
                 for a in range(self.num_actions):
@@ -148,8 +150,8 @@ class IAVI:
                 delta = max(delta, np.max(np.abs(self.r[s, :] - r)))
 
                 self.r[s, :] = r
-                self.q[s, :] = r + self.discount * np.matmul(tp.T, logsumexp(self.q, axis=1).reshape(-1, 1)).reshape(-1)
-                # self.q[s, :] = r + self.discount * np.matmul(tp.T, np.max(self.q, axis=1).reshape(-1, 1)).reshape(-1)
+                # self.q[s, :] = r + self.discount * np.matmul(tp.T, logsumexp(self.q, axis=1).reshape(-1, 1)).reshape(-1)
+                self.q[s, :] = r + self.discount * np.matmul(tp.T, np.max(self.q, axis=1).reshape(-1, 1)).reshape(-1)
 
             if delta < self.threshold:
                 break
@@ -290,7 +292,11 @@ class PGIAVI:
         self.test_trajs = test_trajs
 
         # self.intention_net = IntentionNet(phi_dim=num_states * num_actions, num_latents=self.num_latents)
-        self.intention_net = StatesRNN(phi_dim=num_states * num_actions, num_latents=self.num_latents)
+        self.intention_net = StatesRNN(phi_dim=num_states * num_actions, 
+                                       num_latents=self.num_latents, 
+                                       hidden_dim=128, 
+                                       rnn_hidden_dim=128, 
+                                       num_layers=2)
         self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=1e-3)
 
     def intention_mapping(self, phis, log_pi):
@@ -336,6 +342,9 @@ class PGIAVI:
             agents.append(agent)
 
         logger_cnt = 0
+        total_q_time = 0
+        total_other_time = 0
+        iteration_start_time = time.time()
         while True:
             logger_cnt += 1
             log_p_gammas = []
@@ -348,6 +357,7 @@ class PGIAVI:
                 log_p_gammas.append(log_p_gamma)
 
             # * * * Update Q-value & policies * * *
+            q_start_time = time.time()
             for latent_idx in range(self.num_latents):
                 expert_pi = torch.zeros((self.num_states, self.num_actions))
                 for traj_idx, traj in enumerate(self.train_trajs):
@@ -368,8 +378,11 @@ class PGIAVI:
                 )
                 agent.train()
                 agents[latent_idx] = agent
+            q_time = time.time() - q_start_time
+            total_q_time += q_time
 
             # * * * Update intention network * * *
+            other_start_time = time.time()
             total_loss = 0
             for traj_idx, traj in enumerate(self.train_trajs):
                 phis = self.encode_session_traj(traj)
@@ -378,20 +391,25 @@ class PGIAVI:
                     target_log_gamma, _ = self.intention_mapping(phis, log_pi)
                     target_gamma = torch.exp(target_log_gamma)
                 pred_logf = self.intention_net(phis).log_softmax(-1)
-                loss = - (target_gamma * pred_logf).sum(dim=-1).mean() # cross-entropy loss
+                loss = - (target_gamma * pred_logf).sum(dim=-1).mean()
                 total_loss += loss
             self.optimizer.zero_grad()
             total_loss.backward()
             self.optimizer.step()
+            other_time = time.time() - other_start_time
+            total_other_time += other_time
 
             if logger_cnt % 10 == 0:
-                print(f'Iteration {logger_cnt}, Loss: {total_loss.item():.4f}')
+                iteration_time = time.time() - iteration_start_time
+                print(f'Iteration {logger_cnt}, Loss: {total_loss.item():.4f}, Q-update: {total_q_time:.2f}s, NN: {total_other_time:.2f}s, Total: {iteration_time:.2f}s')
+                total_q_time = 0
+                total_other_time = 0
 
-            if abs(total_loss.item()) < 0.1 or logger_cnt >= 600:
-                print(f'Interation {logger_cnt}, Converged with Loss: {total_loss.item():.4f}')
+            if abs(total_loss.item()) < 0.5 or logger_cnt >= 500:
+                final_iteration_time = time.time() - iteration_start_time
+                print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss.item():.4f}, Total time: {final_iteration_time:.2f}s')
                 break
 
-        # Log-Likelihood Evaluation
         ll = {}
         for ds in ['train', 'test']:
             trajs = eval(f'self.{ds}_trajs')
