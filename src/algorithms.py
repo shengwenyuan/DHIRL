@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from scipy.special import logsumexp
-from model.intention import IntentionNet
+from model.intention import IntentionNet, StatesRNN
 
 def value_iteration(reward, P, num_states, num_actions, discount, threshold=1e-2):
     """
@@ -289,7 +289,8 @@ class PGIAVI:
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
 
-        self.intention_net = IntentionNet(phi_dim=num_states * num_actions, num_latents=self.num_latents)
+        # self.intention_net = IntentionNet(phi_dim=num_states * num_actions, num_latents=self.num_latents)
+        self.intention_net = StatesRNN(phi_dim=num_states * num_actions, num_latents=self.num_latents)
         self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=1e-3)
 
     def intention_mapping(self, phis, log_pi):
