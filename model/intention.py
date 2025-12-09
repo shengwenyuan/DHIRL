@@ -19,7 +19,7 @@ class IntentionNet(nn.Module):
     
 
 class StatesRNN(nn.Module):
-    def __init__(self, phi_dim, num_latents, hidden_dim=128, rnn_hidden_dim=128, num_layers=1):
+    def __init__(self, phi_dim, num_latents, hidden_dim=128, rnn_hidden_dim=128, num_layers=1, dropout=0.1):
         super(StatesRNN, self).__init__()
         self.rnn_hidden_dim = rnn_hidden_dim
         self.num_layers = num_layers
@@ -31,7 +31,7 @@ class StatesRNN(nn.Module):
             hidden_size=rnn_hidden_dim,
             num_layers=num_layers,
             batch_first=True,
-            dropout=0.1 if num_layers > 1 else 0.0
+            dropout=dropout if num_layers > 1 else 0
         )
         
         self.output_proj = nn.Linear(rnn_hidden_dim, num_latents)
