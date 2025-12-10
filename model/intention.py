@@ -26,13 +26,20 @@ class StatesRNN(nn.Module):
         
         self.input_proj = nn.Linear(phi_dim, hidden_dim)
         
-        self.rnn = nn.LSTM(
+        self.rnn = nn.RNN(
             input_size=hidden_dim,
             hidden_size=rnn_hidden_dim,
             num_layers=num_layers,
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0
         )
+        # self.rnn = nn.LSTM(
+        #     input_size=hidden_dim,
+        #     hidden_size=rnn_hidden_dim,
+        #     num_layers=num_layers,
+        #     batch_first=True,
+        #     dropout=dropout if num_layers > 1 else 0
+        # )
         
         self.output_proj = nn.Linear(rnn_hidden_dim, num_latents)
 

@@ -285,17 +285,15 @@ class HIAVI:
 
 class PGIAVI:
     def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount):
-        self.num_latents = num_latents # K
+        self.num_latents = num_latents  # K
         self.num_states = num_states
         self.num_actions = num_actions
-        self.num_phis = 24
-        self.P = P # env trans
+        self.num_phis = 24              # φ
+        self.P = P                      # env trans
         self.discount = discount
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
 
-        # self.intention_net = IntentionNet(phi_dim=self.num_phis, num_latents=self.num_latents)
-        # self.target_intention_net = IntentionNet(phi_dim=self.num_phis, num_latents=self.num_latents)
         self.intention_net = StatesRNN(phi_dim=self.num_phis, 
                                        num_latents=self.num_latents, 
                                        hidden_dim=128, 
@@ -321,7 +319,7 @@ class PGIAVI:
         log_joint = log_f + log_pi.T                # (T, K), log(f_k * π_k) = log P(z_t=k, a_t | s_t, phi_t)
         log_p_gamma = log_joint - torch.logsumexp(log_joint, dim=-1, keepdim=True)  # (T, K)
 
-        return log_p_gamma, log_joint
+        return log_p_gamma, log_f, log_joint
     
     def get_log_pi(self, traj, agents):
         log_pi = torch.zeros((self.num_latents, len(traj)))
@@ -387,7 +385,8 @@ class PGIAVI:
 
         while True:
             logger_cnt += 1
-
+            # if logger_cnt == 30 or logger_cnt == 53:
+            #     print('50')
             # * * * E-step: compute posterior * * *
             log_p_gammas = []
             batch_phis = []
@@ -396,7 +395,7 @@ class PGIAVI:
                 phis = self.encode_session_traj(traj)
                 log_pi = self.get_log_pi(traj, agents)
                 with torch.no_grad():
-                    log_p_gamma, _ = self.intention_mapping(phis, log_pi)
+                    log_p_gamma, *_ = self.intention_mapping(phis, log_pi)
                 log_p_gammas.append(log_p_gamma)
 
                 batch_phis.append(phis)
@@ -420,8 +419,6 @@ class PGIAVI:
             for latent_idx in range(self.num_latents):
                 expert_pi = torch.zeros((self.num_states, self.num_actions))
                 for traj_idx, traj in enumerate(self.train_trajs):
-                    # log_p_gamma = log_p_gammas[traj_idx][:, latent_idx]
-                    # weights = torch.exp(log_p_gamma)
                     weights = batch_target_gamma[traj_idx][:, latent_idx]
                     for t, (s, a, ns) in enumerate(traj):
                         expert_pi[s, a] += weights[t]
@@ -460,29 +457,39 @@ class PGIAVI:
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break
 
+        f = {}
         ll = {}
         for ds in ['train', 'test']:
             trajs = eval(f'self.{ds}_trajs')
+            fs = []
             lls = []
             for traj_idx, traj in enumerate(trajs):
                 phis = self.encode_session_traj(traj)
                 log_pi = self.get_log_pi(traj, agents)
                 with torch.no_grad():
-                    _, log_p_joint = self.intention_mapping(phis, log_pi)
+                    _, log_f, log_p_joint = self.intention_mapping(phis, log_pi)
+                    log_f = log_f.numpy()
                     log_p_joint = log_p_joint.numpy()
-                lls.append(logsumexp(log_p_joint, axis=-1).sum())
+                fs.append(np.exp(log_f))
+                lls.append(logsumexp(log_p_joint, axis=-1).sum()) # whole trajectory LL
             lls = np.mean(np.hstack(lls))
             ll[ds] = np.mean(lls)
+            f[ds] = fs
 
-        return ll, agents
+        return ll, fs, agents
 
     def predict(self, trajs, agents):
-        logp_gammas = []
+        fs = []
+        lls = []
         for traj_idx, traj in enumerate(trajs):
-                phis = self.encode_session_traj(traj)
-                log_pi = self.get_log_pi(traj, agents)
-                with torch.no_grad():
-                    log_p_gamma, _ = self.intention_mapping(phis, log_pi)
-                    log_p_gamma = log_p_gamma.numpy()
-                logp_gammas.append(log_p_gamma)
-        return logp_gammas
+            phis = self.encode_session_traj(traj)
+            log_pi = self.get_log_pi(traj, agents)
+            with torch.no_grad():
+                _, log_f, log_p_joint = self.intention_mapping(phis, log_pi)
+                log_f = log_f.numpy()
+                log_p_joint = log_p_joint.numpy()
+            fs.append(np.exp(log_f))
+            lls.append(logsumexp(log_p_joint, axis=-1).sum()) # whole trajectory LL
+        lls = np.mean(np.hstack(lls))
+        
+        return lls, fs
