@@ -1,5 +1,6 @@
 import os
 import json
+import argparse
 
 import numpy as np
 import torch
@@ -10,17 +11,22 @@ from src.algorithms import PGIAVI
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ll_filename', type=str, default='ll_pgiql.csv')
+    parser.add_argument('--num_repeats', type=int, default=3)
+    parser.add_argument('--num_latents', type=int, default=3)
+    args = parser.parse_args()
+
     num_folds = 5
-    num_repeats = 1
+    num_repeats = args.num_repeats
     num_states = 127
     num_actions = 4
-    num_latents = 3
+    num_latents = args.num_latents
 
     np.random.seed(42)
     torch.manual_seed(42)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # Reproducibility settings for CUDA (when available)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     if torch.cuda.is_available():
@@ -39,7 +45,6 @@ if __name__ == '__main__':
 
     len_trajs = len(trajs)
     kf = KFold(n_splits=num_folds, shuffle=True, random_state=10042)
-    # kf = KFold(n_splits=num_folds, shuffle=True, random_state=10015)
     for num_trajs in [237, 167, 107]:
         for kf_idx, (train_idxes, test_idxes) in enumerate(kf.split(trajs[:num_trajs])):
             train_trajs = [trajs[train_idx] for train_idx in train_idxes]
@@ -62,4 +67,4 @@ if __name__ == '__main__':
                             np.save(os.path.join(param_dir, f'r_{agent_idx}.npy'), agent.r)
                             np.save(os.path.join(param_dir, f'q_{agent_idx}.npy'), agent.q)
             output_df.loc[len(output_df)] = [num_trajs, kf_idx, best_ll['train'], best_ll['test']]
-            output_df.to_csv(os.path.join(output_dir, 'll_pgiql.csv'), index=False)
+            output_df.to_csv(os.path.join(output_dir, args.ll_filename), index=False)
