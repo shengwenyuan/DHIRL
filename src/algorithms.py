@@ -471,7 +471,8 @@ class PGIAVI:
                     log_f = log_f.numpy()
                     log_p_joint = log_p_joint.numpy()
                 fs.append(np.exp(log_f))
-                lls.append(logsumexp(log_p_joint, axis=-1).sum()) # whole trajectory LL
+                # lls.append(logsumexp(log_p_joint, axis=-1).sum()) # whole trajectory LL
+                lls.append(np.mean(logsumexp(log_p_joint, axis=-1))) # per-step LL
             lls = np.mean(np.hstack(lls))
             ll[ds] = np.mean(lls)
             f[ds] = fs
