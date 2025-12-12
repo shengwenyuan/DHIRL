@@ -258,12 +258,13 @@ def PlotMazeFunction(f, state_name, m_wa, m_ru, m_xc, m_yc, numcol='cyan', figsi
             ax.add_patch(patches.Rectangle((x-0.5, y-0.5), 1.0, 1.0, lw=0,
                                             fc=custom_cmap(norm(f[j])), ec='gray'))
         if numcol:
-            if state_name[:5] == 'Water' and j == 116:
-                ax.text(x-.4, y+.1, 'Water', fontsize=7, color=numcol)
-            elif state_name[:4] == 'Home' and j == 0:
-                ax.text(x-.4, y+.15, 'Home', fontsize=7, color=numcol)
-            else:
-                ax.text(x-.4, y+.15, '{:d}'.format(j),fontsize=10.5, color=numcol)  # number the ends of a run
+            # if state_name[:5] == 'Water' and j == 116:
+            #     ax.text(x-.4, y+.1, 'Water', fontsize=7, color=numcol)
+            # elif state_name[:4] == 'Home' and j == 0:
+            #     ax.text(x-.4, y+.15, 'Home', fontsize=7, color=numcol)
+            # else:
+            #     ax.text(x-.4, y+.15, '{:d}'.format(j),fontsize=10.5, color=numcol)  # number the ends of a run
+            ax.text(x-.4, y+.15, '{:d}'.format(j),fontsize=10.5, color=numcol)  # number the ends of a run
                 
         # plt.colorbar(sm, ax=ax, ticks=[0, 1], fraction=0.046, pad=0.04)
         ax.set_title(state_name, fontsize=20)
