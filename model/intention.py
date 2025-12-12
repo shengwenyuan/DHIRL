@@ -19,34 +19,43 @@ class IntentionNet(nn.Module):
     
 
 class StatesRNN(nn.Module):
-    def __init__(self, phi_dim, num_latents, hidden_dim=128, rnn_hidden_dim=128, num_layers=1, dropout=0.1):
+    def __init__(self, 
+                 num_states, 
+                 num_actions,
+                 num_latents, 
+                 emb_dim=16, 
+                 rnn_hidden_dim=128, 
+                 num_layers=1, 
+                 dropout=0.1
+    ):
         super(StatesRNN, self).__init__()
-        self.rnn_hidden_dim = rnn_hidden_dim
-        self.num_layers = num_layers
-        
-        self.input_proj = nn.Linear(phi_dim, hidden_dim)
-        
-        self.rnn = nn.RNN(
-            input_size=hidden_dim,
-            hidden_size=rnn_hidden_dim,
-            num_layers=num_layers,
-            batch_first=True,
-            dropout=dropout if num_layers > 1 else 0
-        )
-        # self.rnn = nn.LSTM(
-        #     input_size=hidden_dim,
+        self.state_emb = nn.Embedding(num_states, emb_dim)
+        self.action_emb = nn.Embedding(num_actions, emb_dim)
+        # self.rnn = nn.RNN(
+        #     input_size=emb_dim*3,
         #     hidden_size=rnn_hidden_dim,
         #     num_layers=num_layers,
         #     batch_first=True,
         #     dropout=dropout if num_layers > 1 else 0
         # )
+        self.rnn = nn.LSTM(
+            input_size=emb_dim*3,
+            hidden_size=rnn_hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0
+        )
+        self.fc = nn.Linear(rnn_hidden_dim, num_latents)
         
-        self.output_proj = nn.Linear(rnn_hidden_dim, num_latents)
-
     def forward(self, x):
-        # x: (batch_size, seq_len, phi_dim)
-        x = F.relu(self.input_proj(x))               # (B, T, hidden_dim)
-        rnn_out, _ = self.rnn(x)                     # (B, T, rnn_hidden_dim)
-        logits = self.output_proj(rnn_out)           # (B, T, num_latents)
+        # x: (B, seq_len, 3)
+        s, a, ns = x.unbind(-1)        # (B, T) * 3
+        s_emb = self.state_emb(s)
+        a_emb = self.action_emb(a)
+        ns_emb = self.state_emb(ns)
+        x = torch.cat([s_emb, a_emb, ns_emb], dim=-1)
+
+        rnn_out, _ = self.rnn(x)            # (B, T, rnn_hidden_dim)
+        logits = self.fc(rnn_out)           # (B, T, num_latents)
 
         return logits

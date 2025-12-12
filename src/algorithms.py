@@ -288,33 +288,31 @@ class PGIAVI:
         self.num_latents = num_latents  # K
         self.num_states = num_states
         self.num_actions = num_actions
-        self.num_phis = 24              # φ
         self.P = P                      # env trans
         self.discount = discount
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
 
-        self.intention_net = StatesRNN(phi_dim=self.num_phis, 
+        self.intention_net = StatesRNN(num_states=self.num_states, 
+                                       num_actions=self.num_actions,
                                        num_latents=self.num_latents, 
-                                       hidden_dim=128, 
+                                       emb_dim=16, 
                                        rnn_hidden_dim=128, 
                                        num_layers=1,
                                        dropout=0.3)
-        self.target_intention_net = StatesRNN(phi_dim=self.num_phis, 
-                                       num_latents=self.num_latents, 
-                                       hidden_dim=128, 
-                                       rnn_hidden_dim=128, 
-                                       num_layers=1,
-                                       dropout=0.3)
+        self.target_intention_net = StatesRNN(num_states=self.num_states, 
+                                              num_actions=self.num_actions,
+                                              num_latents=self.num_latents, 
+                                              emb_dim=16, 
+                                              rnn_hidden_dim=128, 
+                                              num_layers=1,
+                                              dropout=0.3)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
-        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=4e-3)
+        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=5e-3)
 
-        self.state_emb = torch.nn.Embedding(self.num_states, 16)
-        self.action_emb = torch.nn.Embedding(self.num_actions, 8)
-
-    def intention_mapping(self, phis, log_pi):
-        f_logits = self.target_intention_net(phis.unsqueeze(0)).squeeze(0)              # (T, K)
+    def intention_mapping(self, traj, log_pi):
+        f_logits = self.target_intention_net(traj.unsqueeze(0)).squeeze(0)              # (1, T, K)
         log_f = torch.log_softmax(f_logits, dim=-1) # TODO: MDP? set explicit prior: intention transition dynamics
         log_joint = log_f + log_pi.T                # (T, K), log(f_k * π_k) = log P(z_t=k, a_t | s_t, phi_t)
         log_p_gamma = log_joint - torch.logsumexp(log_joint, dim=-1, keepdim=True)  # (T, K)
@@ -332,30 +330,18 @@ class PGIAVI:
 
         return log_pi
 
-    def encode_session_traj(self, traj):
-        states = torch.tensor([s for s, a, ns in traj], dtype=torch.long)
-        actions = torch.tensor([a for s, a, ns in traj], dtype=torch.long)
-        s_emb = self.state_emb(states)  # (T, 16)
-        a_emb = self.action_emb(actions)  # (T, 8)
-        phis = torch.cat([s_emb, a_emb], dim=-1)  # (T, 24)
-        return phis
-    
-    def train_batched(self, batch_phis, batch_target_gamma, num_epochs=1):
-        """
-        :param agents: List of IAVI agents
-        :param num_epochs: Number of passes through the data
-        """
+    def train_batched(self, batch_trajs, batch_target_gamma, num_epochs=1):
         total_loss = 0
         for epoch in range(num_epochs):
             self.optimizer.zero_grad()
             
-            pred_logits = self.intention_net(batch_phis)  # (B, T, K)
+            pred_logits = self.intention_net(batch_trajs)  # (B, T, K)
             pred_logf = torch.log_softmax(pred_logits, dim=-1)  # (B, T, K)
             
             # Compute loss: negative log-likelihood
             loss = -(batch_target_gamma * pred_logf).sum(dim=-1).mean()
             # ce_loss = -(batch_target_gamma * pred_logf).sum(-1).mean()
-            # entropy = -(pred_logf * torch.exp(pred_logf)).sum(-1).mean()
+            # entropy = -(pred_logf * torch.exp(pred_logf)).sum(-1).mean() # entropy regularization
             # loss = ce_loss - 0.02 * entropy
             
             loss.backward()
@@ -377,6 +363,14 @@ class PGIAVI:
             )
             agent.train()
             agents.append(agent)
+        
+        seq_lens = [len(traj) for traj in self.train_trajs]
+        max_len = max(seq_lens)
+        batch_traj_padded = torch.zeros(len(self.train_trajs), max_len, 3)
+        for i, traj in enumerate(self.train_trajs):
+            seq_len = seq_lens[i]
+            batch_traj_padded[i, :seq_len] = torch.as_tensor(traj, dtype=torch.long)
+        batch_trajs = batch_traj_padded.long()  # (B, T, 3)
 
         logger_cnt = 0
         total_q_time = 0
@@ -385,33 +379,22 @@ class PGIAVI:
 
         while True:
             logger_cnt += 1
-            # if logger_cnt == 30 or logger_cnt == 53:
-            #     print('50')
+
             # * * * E-step: compute posterior * * *
             log_p_gammas = []
-            batch_phis = []
             batch_target_gamma = []
             for traj_idx, traj in enumerate(self.train_trajs):
-                phis = self.encode_session_traj(traj)
                 log_pi = self.get_log_pi(traj, agents)
                 with torch.no_grad():
-                    log_p_gamma, *_ = self.intention_mapping(phis, log_pi)
+                    log_p_gamma, *_ = self.intention_mapping(batch_trajs[traj_idx], log_pi)
                 log_p_gammas.append(log_p_gamma)
-
-                batch_phis.append(phis)
                 batch_target_gamma.append(torch.exp(log_p_gamma))
             
             # Pad sequences to same length for RNN input
-            max_len = max(phi.shape[0] for phi in batch_phis)
-            batch_phis_padded = torch.zeros(len(batch_phis), max_len, self.num_phis)
             batch_target_gamma_padded = torch.zeros(len(batch_target_gamma), max_len, self.num_latents)
-            
-            for i, (phi, gamma) in enumerate(zip(batch_phis, batch_target_gamma)):
-                seq_len = phi.shape[0]
-                batch_phis_padded[i, :seq_len] = phi
+            for i, gamma in enumerate(batch_target_gamma):
+                seq_len = seq_lens[i]
                 batch_target_gamma_padded[i, :seq_len] = gamma
-            
-            batch_phis = batch_phis_padded  # (B, T, phi_dim)
             batch_target_gamma = batch_target_gamma_padded  # (B, T, K)
 
             # * * * Update Q-value & policies * * *
@@ -440,7 +423,7 @@ class PGIAVI:
 
             # * * * Update intention network * * *
             other_start_time = time.time()
-            total_loss = self.train_batched(batch_phis, batch_target_gamma, num_epochs=1)
+            total_loss = self.train_batched(batch_trajs, batch_target_gamma, num_epochs=1)
             other_time = time.time() - other_start_time
             total_other_time += other_time
 
@@ -464,10 +447,9 @@ class PGIAVI:
             fs = []
             lls = []
             for traj_idx, traj in enumerate(trajs):
-                phis = self.encode_session_traj(traj)
                 log_pi = self.get_log_pi(traj, agents)
                 with torch.no_grad():
-                    _, log_f, log_p_joint = self.intention_mapping(phis, log_pi)
+                    _, log_f, log_p_joint = self.intention_mapping(batch_trajs[traj_idx], log_pi)
                     log_f = log_f.numpy()
                     log_p_joint = log_p_joint.numpy()
                 fs.append(np.exp(log_f))
@@ -477,20 +459,4 @@ class PGIAVI:
             ll[ds] = np.mean(lls)
             f[ds] = fs
 
-        return ll, fs, agents
-
-    def predict(self, trajs, agents):
-        fs = []
-        lls = []
-        for traj_idx, traj in enumerate(trajs):
-            phis = self.encode_session_traj(traj)
-            log_pi = self.get_log_pi(traj, agents)
-            with torch.no_grad():
-                _, log_f, log_p_joint = self.intention_mapping(phis, log_pi)
-                log_f = log_f.numpy()
-                log_p_joint = log_p_joint.numpy()
-            fs.append(np.exp(log_f))
-            lls.append(logsumexp(log_p_joint, axis=-1).sum()) # whole trajectory LL
-        lls = np.mean(np.hstack(lls))
-        
-        return lls, fs
+        return ll, f, agents

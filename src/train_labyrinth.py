@@ -13,7 +13,7 @@ from src.algorithms import PGIAVI
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ll_filename', type=str, default='ll_pgiql.csv')
-    parser.add_argument('--num_repeats', type=int, default=3)
+    parser.add_argument('--num_repeats', type=int, default=1)
     parser.add_argument('--num_latents', type=int, default=3)
     args = parser.parse_args()
 

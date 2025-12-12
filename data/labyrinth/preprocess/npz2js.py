@@ -10,14 +10,22 @@ out_js = os.path.abspath(os.path.join(script_dir, '..', 'data', 'trajs.js'))
 print('Loading:', npy_path)
 arr = np.load(npy_path)
 N, T, D = arr.shape
+
 if D == 2:
-	zeros = np.zeros((N, T, 1), dtype=arr.dtype)
-	arr3 = np.concatenate([arr, zeros], axis=2)
+    states = arr[:, :, 0]  # (N, T)
+    actions = arr[:, :, 1]  # (N, T)
+    
+    next_states = np.zeros_like(states)
+    next_states[:, :-1] = states[:, 1:]  # Shift states forward
+    next_states[:, -1] = states[:, -1]
+    
+    arr3 = np.stack([states, actions, next_states], axis=2)
 else:
-	arr3 = arr
+    arr3 = arr
+
 py_data = arr3.tolist()
 
 os.makedirs(os.path.dirname(out_js), exist_ok=True)
 print('Writing:', out_js)
 with open(out_js, 'w') as f:
-	json.dump(py_data, f)
+    json.dump(py_data, f)
