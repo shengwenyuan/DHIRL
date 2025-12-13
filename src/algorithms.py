@@ -477,7 +477,7 @@ class PGIAVI:
             ll[ds] = np.mean(lls)
             f[ds] = fs
 
-        return ll, fs, agents
+        return ll, f, agents
 
     def predict(self, trajs, agents):
         fs = []

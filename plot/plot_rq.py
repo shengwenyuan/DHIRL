@@ -73,4 +73,5 @@ cbar.set_ticks([0, 1])
 cbar.set_ticklabels(['Start', 'End'])
 cbar.ax.tick_params(labelsize=18)
 
-plt.savefig(plot_folder + '/all_trajs_labyrinth.pdf', bbox_inches='tight')
+plt.savefig(plot_folder + '/all_trajs_labyrinth.pdf')
+# plt.savefig(plot_folder + '/all_trajs_labyrinth.pdf', bbox_inches='tight')

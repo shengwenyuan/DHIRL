@@ -13,8 +13,9 @@ from src.algorithms import PGIAVI
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ll_filename', type=str, default='ll_pgiql.csv')
-    parser.add_argument('--num_repeats', type=int, default=3)
+    parser.add_argument('--num_repeats', type=int, default=1)
     parser.add_argument('--num_latents', type=int, default=3)
+    parser.add_argument('--rand_seed', type=int, default=42)
     args = parser.parse_args()
 
     num_folds = 5
@@ -23,14 +24,14 @@ if __name__ == '__main__':
     num_actions = 4
     num_latents = args.num_latents
 
-    np.random.seed(42)
-    torch.manual_seed(42)
+    np.random.seed(args.rand_seed)
+    torch.manual_seed(args.rand_seed)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(42)
+        torch.cuda.manual_seed_all(args.rand_seed)
 
     output_dir = f'outputs/labyrinth_train'
     if not os.path.exists(output_dir):
