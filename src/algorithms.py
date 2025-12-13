@@ -3,7 +3,7 @@ import torch
 import time
 
 from scipy.special import logsumexp
-from model.intention import IntentionNet, StatesRNN
+from model.intention import IntentionNet, StatesRNN, IntentionTransformer
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 
 
@@ -293,20 +293,36 @@ class PGIAVI:
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
 
-        self.intention_net = StatesRNN(num_states=self.num_states, 
-                                       num_actions=self.num_actions,
-                                       num_latents=self.num_latents, 
-                                       emb_dim=16, 
-                                       rnn_hidden_dim=128, 
-                                       num_layers=1,
-                                       dropout=0.3)
-        self.target_intention_net = StatesRNN(num_states=self.num_states, 
-                                              num_actions=self.num_actions,
-                                              num_latents=self.num_latents, 
-                                              emb_dim=16, 
-                                              rnn_hidden_dim=128, 
-                                              num_layers=1,
-                                              dropout=0.3)
+        # self.intention_net = StatesRNN(num_states=self.num_states, 
+        #                                num_actions=self.num_actions,
+        #                                num_latents=self.num_latents, 
+        #                                emb_dim=16, 
+        #                                rnn_hidden_dim=128, 
+        #                                num_layers=1,
+        #                                dropout=0.3)
+        # self.target_intention_net = StatesRNN(num_states=self.num_states, 
+        #                                       num_actions=self.num_actions,
+        #                                       num_latents=self.num_latents, 
+        #                                       emb_dim=16, 
+        #                                       rnn_hidden_dim=128, 
+        #                                       num_layers=1,
+        #                                       dropout=0.3)
+        self.intention_net = IntentionTransformer(num_states=self.num_states, 
+                                               num_actions=self.num_actions,
+                                               num_latents=self.num_latents, 
+                                               emb_dim=16, 
+                                               d_model=128, 
+                                               nhead=4, 
+                                               num_layers=2,
+                                               dropout=0.1)
+        self.target_intention_net = IntentionTransformer(num_states=self.num_states, 
+                                                     num_actions=self.num_actions,
+                                                     num_latents=self.num_latents, 
+                                                     emb_dim=16, 
+                                                     d_model=128, 
+                                                     nhead=4, 
+                                                     num_layers=2,
+                                                     dropout=0.1)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
         self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=5e-3)
