@@ -3,7 +3,7 @@ import torch
 import time
 
 from scipy.special import logsumexp
-from model.intention import IntentionNet, StatesRNN
+from model.intention import IntentionNet, StatesRNN, IntentionTransformer
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 
 
@@ -294,6 +294,18 @@ class PGIAVI:
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
 
+        # self.intention_net = IntentionTransformer(phi_dim=self.num_phis, 
+        #                                num_latents=self.num_latents, 
+        #                                d_model=128, 
+        #                                nhead=4,
+        #                                num_layers=1,
+        #                                dropout=0.2)
+        # self.target_intention_net = IntentionTransformer(phi_dim=self.num_phis, 
+        #                                num_latents=self.num_latents, 
+        #                                d_model=128, 
+        #                                nhead=4,
+        #                                num_layers=1,
+        #                                dropout=0.2)
         self.intention_net = StatesRNN(phi_dim=self.num_phis, 
                                        num_latents=self.num_latents, 
                                        hidden_dim=128, 
@@ -308,7 +320,7 @@ class PGIAVI:
                                        dropout=0.3)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
-        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=4e-3)
+        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=5e-3)
 
         self.state_emb = torch.nn.Embedding(self.num_states, 16)
         self.action_emb = torch.nn.Embedding(self.num_actions, 8)
@@ -385,8 +397,7 @@ class PGIAVI:
 
         while True:
             logger_cnt += 1
-            # if logger_cnt == 30 or logger_cnt == 53:
-            #     print('50')
+            
             # * * * E-step: compute posterior * * *
             log_p_gammas = []
             batch_phis = []
@@ -446,13 +457,13 @@ class PGIAVI:
 
             self.target_intention_net.load_state_dict(self.intention_net.state_dict())
 
-            if logger_cnt % 10 == 0:
+            if logger_cnt % 5 == 0:
                 iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Loss: {total_loss:.4f}, Q-update: {total_q_time:.2f}s, NN: {total_other_time:.2f}s, Total: {iteration_time:.2f}s')
                 total_q_time = 0
                 total_other_time = 0
 
-            if abs(total_loss) < 3e-3 or logger_cnt >= 100:
+            if abs(total_loss) < 5e-3 or logger_cnt >= 100:
                 final_iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break
