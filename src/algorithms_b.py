@@ -106,17 +106,17 @@ class PGIAVI_B:
                                        num_latents=self.num_latents, 
                                        hidden_dim=128, 
                                        rnn_hidden_dim=128, 
-                                       num_layers=1,
+                                       num_layers=4,
                                        dropout=0.3).to(self.device)
         self.target_intention_net = StatesRNN(phi_dim=self.num_phis, 
                                        num_latents=self.num_latents, 
                                        hidden_dim=128, 
                                        rnn_hidden_dim=128, 
-                                       num_layers=1,
+                                       num_layers=4,
                                        dropout=0.3).to(self.device)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
-        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=5e-3)
+        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=1e-3)
 
         self.state_emb = torch.nn.Embedding(self.num_states, 16).to('cpu')
         self.action_emb = torch.nn.Embedding(self.num_actions, 16).to('cpu')
@@ -201,7 +201,7 @@ class PGIAVI_B:
 
         return batch_phis, mask
     
-    def train_minibatch(self, m_loader, total_length, num_epochs=1):
+    def train_minibatch(self, m_loader, total_length, num_epochs=1, kl_weight=0.):
         """
         :param agents: List of IAVI agents
         :param num_epochs: Number of passes through the data
@@ -210,14 +210,33 @@ class PGIAVI_B:
         for epoch in range(num_epochs):
             total_loss = 0
             for batch_phis, batch_target_gamma, batch_mask in m_loader:
+                batch_phis = batch_phis.to(self.device)
+                batch_target_gamma = batch_target_gamma.to(self.device)
+                batch_mask = batch_mask.to(self.device)
+
                 self.optimizer.zero_grad()
 
-                pred_logits = self.intention_net(batch_phis.to(self.device), mask=batch_mask.to(self.device), total_length=total_length)  # (B, T, K)
+                pred_logits = self.intention_net(batch_phis, mask=batch_mask, total_length=total_length)  # (B, T, K)
                 pred_logf = torch.log_softmax(pred_logits, dim=-1)  # (B, T, K)
                 
-                # Compute loss: negative log-likelihood
-                loss = -(batch_target_gamma.to(self.device) * pred_logf * batch_mask.to(self.device).unsqueeze(-1)).sum(dim=-1).mean()
+                # Compute nll_loss: negative log-likelihood
+                nll_loss = -(batch_target_gamma * pred_logf * batch_mask.unsqueeze(-1)).sum(dim=-1).mean()
 
+                # KL regularization
+                if kl_weight > 0.:
+                    mask_curr = batch_mask[:, 1:]
+                    mask_prev = batch_mask[:, :-1]
+                    gamma_curr = batch_target_gamma[:, 1:, :]
+                    logf_curr = pred_logf[:, 1:, :]
+                    logf_prev = pred_logf[:, :-1, :]
+
+                    kl = gamma_curr * (logf_curr - logf_prev)
+                    kl = (kl * mask_curr.unsqueeze(-1)).sum(dim=-1).mean()
+                    kl_reg = kl_weight * kl
+                else:
+                    kl_reg = 0
+
+                loss = nll_loss + kl_reg
                 loss.backward()
                 self.optimizer.step()
                 total_loss += loss.item()
@@ -298,7 +317,7 @@ class PGIAVI_B:
             # * * * Update intention network * * *
             intention_start_time = time.time()
             # total_loss = self.train_batched(batch_phis, batch_target_gamma, num_epochs=1)
-            total_loss = self.train_minibatch(m_loader, max_len, num_epochs=1)
+            total_loss = self.train_minibatch(m_loader, max_len, num_epochs=1, kl_weight=0.05)
             intention_time = time.time() - intention_start_time
             logstep_intention_time += intention_time
 
@@ -313,7 +332,7 @@ class PGIAVI_B:
                 logstep_q_time = 0
                 logstep_intention_time = 0
 
-            if (abs(total_loss) < 3e-3) or (logger_cnt >= 60):
+            if (abs(total_loss) < 1e-2) or (logger_cnt >= 40):
                 final_iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break
