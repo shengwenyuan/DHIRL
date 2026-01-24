@@ -7,108 +7,6 @@ from model.intention import IntentionNet, StatesRNN, IntentionTransformer
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 
 
-def value_iteration(reward, P, num_states, num_actions, discount, threshold=1e-2):
-    """
-    Calculate the optimal state value function of given enviroment.
-
-    :param reward: reward vector. nparray. (states, )
-    :param P: transition probability p(st | s, a). nparray. (states, states, actions).
-    :param discount: discount rate gamma. float. Default: 0.99
-    :param num_states: number of states. int.
-    :param num_actions: number of actions. int.
-    :param threshold: stop when difference smaller than threshold. float.
-    :return: optimal state value function. nparray. (states)
-    """
-
-    v = np.zeros(num_states)
-
-    while True:
-        delta = 0
-
-        for s in range(num_states):
-            max_v = float("-inf")
-            for a in range(num_actions):
-                tp = P[s, :, a]
-                max_v = max(max_v, np.dot(tp, (reward + discount * v)))
-
-            diff = abs(v[s] - max_v)
-            delta = max(delta, diff)
-
-            v[s] = max_v
-
-        if delta < threshold:
-            break
-
-    return v
-
-
-def vi_policy(num_states, num_actions, P, reward, discount, stochastic=True, threshold=1e-2):
-    """
-    Find the optimal policy.
-
-    num_states: Number of states. int.
-    num_actions: Number of actions. int.
-    P: Function taking (state, action, state) to
-        transition probabilities.
-    reward: Vector of rewards for each state.
-    discount: MDP discount factor. float.
-    threshold: Convergence threshold, default 1e-2. float.
-    stochastic: Whether the policy should be stochastic. Default True.
-    -> Action probabilities for each state or action int for each state
-        (depending on stochasticity).
-    """
-
-    v = value_iteration(reward, P, num_states, num_actions, discount, threshold)
-
-    policy = np.zeros((num_states, num_actions))
-    if stochastic:
-        for s in range(num_states):
-            for a in range(num_actions):
-                p = P[s, :, a]
-                policy[s, a] = p.dot(reward + discount*v)
-        policy -= policy.max(axis=1).reshape((num_states, 1))  # For numerical stability.
-        policy = np.exp(policy)/np.exp(policy).sum(axis=1).reshape((num_states, 1))
-
-    else:
-        def _policy(s):
-            return max(range(num_actions),
-                       key=lambda a: sum(P[s, k, a] *
-                                         (reward[k] + discount * v[k])
-                                         for k in range(num_states)))
-        for s in range(num_states):
-            policy[s, _policy(s)] = 1
-    return policy
-
-
-def policy_eval(policy, reward, P, num_states, discount, threshold=1e-2):
-    """
-    Policy evaluation.
-
-    :param policy: policy to evaluation. nparray. (states, actions).
-    :param reward: ground truth reward of the enviroment. nparray. (states, ).
-    :param P: transition probability p(st | s, a). nparray. (states, states, actions).
-    :param num_states: number of states in the enviroment. int.
-    :param discount: discount rate gamma. float.
-    :param threshold: stop when difference smaller than threshold. float.
-    :return: state value estimation for given policy. nparray. (states, ).
-    """
-    v = np.zeros(num_states)
-    while True:
-        delta = 0
-        for s in range(num_states):
-            pi = policy[s]
-            tp = P[s, :, :]
-            target = np.dot(pi, np.matmul(tp.T, (reward + discount * v).reshape(-1, 1)))
-
-            delta = max(delta, np.abs(target - v[s]))
-
-            v[s] = target
-
-        if delta < threshold:
-            break
-
-    return v
-
 
 class IAVI:
     def __init__(self, num_states, num_actions, P, expert_policy, discount, threshold=1e-3):
@@ -122,6 +20,10 @@ class IAVI:
 
         self.r = np.random.randn(self.num_states, self.num_actions)
         self.q = np.random.randn(self.num_states, self.num_actions)
+        X_tmp = np.full((self.num_actions, self.num_actions), -1 / (self.num_actions - 1))
+        np.fill_diagonal(X_tmp, 1.0)
+        self.X_tmp = X_tmp
+        self.X_inv = np.linalg.inv(X_tmp)
 
     def train(self):
         X = np.ones((self.num_actions, self.num_actions))
@@ -154,7 +56,6 @@ class IAVI:
                 self.r[s, :] = r
                 # self.q[s, :] = r + self.discount * np.matmul(tp.T, logsumexp(self.q, axis=1).reshape(-1, 1)).reshape(-1)
                 self.q[s, :] = r + self.discount * np.matmul(tp.T, np.max(self.q, axis=1).reshape(-1, 1)).reshape(-1)
-
             if delta < self.threshold:
                 break
 
@@ -387,7 +288,7 @@ class PGIAVI:
                 expert_policy=uniform_policy,
                 discount=self.discount
             )
-            agent.train()
+            # agent.train()
             agents.append(agent)
 
         logger_cnt = 0

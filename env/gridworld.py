@@ -152,3 +152,88 @@ class GridWorld:
                     else:
                         return self.wind / self.num_actions
 
+
+class TreasureCollectionWorld(GridWorld):
+    def __init__(self):
+        super().__init__()
+        self.grid_size = 5
+        self.actions = ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1))
+        self.wind = 0.1
+        self.gamma = 0.9
+
+        self.num_states = self.grid_size ** 2
+        self.num_actions = len(self.actions)
+
+        # Environmental features
+        self.terrain_cost = self._initialize_terrain()
+        self.treasure_locations = self._initialize_treasures()
+        self.initial_energy = 20
+        
+        self.P = np.array(
+            [[[self._transition_probability(i, j, k)
+               for k in range(self.num_actions)]
+              for j in range(self.num_states)]
+             for i in range(self.num_states)])
+
+        self.initial_state = (0, 0)
+        self.goal_state = (4, 4)
+
+    def _initialize_terrain(self):
+        """Varying terrain costs (1=normal, 2=rough, 3=blocked)."""
+        terrain = np.ones((self.grid_size, self.grid_size), dtype=int)
+        rough = [(1, 2), (2, 1), (3, 3), (4, 3)]
+        for pos in rough:
+            terrain[pos] = 2
+        blocked = [(1, 4), (2, 2), (3, 2)]
+        for pos in blocked:
+            terrain[pos] = 3
+        return terrain
+
+    def _initialize_treasures(self):
+        """Hidden treasure locations (1=treasure, 0=no treasure)."""
+        treasures = np.zeros((self.grid_size, self.grid_size), dtype=int)
+        treasure_cells = [(0, 4), (2, 2), (4, 0)] # int idx: 4, 12, 20
+        for pos in treasure_cells:
+            treasures[pos] = 1
+        return treasures
+
+    def reset(self):
+        """Reset environment."""
+        self.energy = self.initial_energy
+        self.has_treasure = False
+        return self.state_to_int(self.initial_state)
+
+    def step(self, s, a):
+        """Execute action and update internal state.
+        Returns: next_state (int)
+        """
+        ns = np.random.choice(self.num_states, p=self.P[s, :, a])
+        
+        x, y = self.int_to_state(ns)
+        terrain = self.terrain_cost[x, y]
+        energy_cost = {1: 1, 2: 3, 3: 6}[terrain]
+        self.energy = max(0, self.energy - energy_cost)
+        
+        if self.treasure_locations[x, y] == 1 and not self.has_treasure:
+            self.has_treasure = True
+        
+        return ns
+
+    def _get_observation(self, s):
+        """
+        Get observation at state s.
+        Does NOT include treasure status - agent must infer from history.
+        
+        :param s: state int
+        :return: dict with observable features
+        """
+        x, y = self.int_to_state(s)
+        goal_x, goal_y = self.goal_state
+        
+        obs = {
+            'terrain': int(self.terrain_cost[x, y]),
+            'energy': int(self.energy),
+            'distance': int(abs(x - goal_x) + abs(y - goal_y))
+        }
+        
+        return obs
