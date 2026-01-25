@@ -167,7 +167,8 @@ class TreasureCollectionWorld(GridWorld):
         # Environmental features
         self.terrain_cost = self._initialize_terrain()
         self.treasure_locations = self._initialize_treasures()
-        self.initial_energy = 20
+        self.treasure_ints = [self.state_to_int((2, 2)), self.state_to_int((4, 2))]
+        self.initial_energy = 50
         
         self.P = np.array(
             [[[self._transition_probability(i, j, k)
@@ -181,10 +182,10 @@ class TreasureCollectionWorld(GridWorld):
     def _initialize_terrain(self):
         """Varying terrain costs (1=normal, 2=rough, 3=blocked)."""
         terrain = np.ones((self.grid_size, self.grid_size), dtype=int)
-        rough = [(1, 2), (2, 1), (3, 3), (4, 3)]
+        rough = [(1, 2), (2, 1), (2, 4), (4, 1)]
         for pos in rough:
             terrain[pos] = 2
-        blocked = [(1, 4), (2, 2), (3, 2)]
+        blocked = [(0, 3), (2, 2), (3, 1)]
         for pos in blocked:
             terrain[pos] = 3
         return terrain
@@ -192,7 +193,7 @@ class TreasureCollectionWorld(GridWorld):
     def _initialize_treasures(self):
         """Hidden treasure locations (1=treasure, 0=no treasure)."""
         treasures = np.zeros((self.grid_size, self.grid_size), dtype=int)
-        treasure_cells = [(0, 4), (2, 2), (4, 0)] # int idx: 4, 12, 20
+        treasure_cells = [(2, 2), (4, 2)] # int idx: 2, 12, 22
         for pos in treasure_cells:
             treasures[pos] = 1
         return treasures

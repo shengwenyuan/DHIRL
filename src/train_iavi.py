@@ -5,21 +5,23 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
 
-from env.gridworld import GridWorld
-from algorithms import IAVI
+from env.gridworld import GridWorld, TreasureCollectionWorld
+from src.algorithms import IAVI
 
 
 if __name__ == '__main__':
     num_folds = 5
     np.random.seed(42)
 
-    output_dir = f'../outputs/train'
+    output_dir = f'outputs/train'
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     output_df = pd.DataFrame(columns=['num_trajs', 'fold', 'train_ll', 'test_ll'])
 
-    envr = GridWorld()
-    with open('../data/trajs.js') as f:
+    # envr = GridWorld()
+    # with open('data/gridworld/trajs.js') as f:
+    envr = TreasureCollectionWorld()
+    with open('data/gridworld/trajs_treasure.json') as f:
         trajs = json.load(f)
 
     kf = KFold(n_splits=num_folds, shuffle=True, random_state=10015)

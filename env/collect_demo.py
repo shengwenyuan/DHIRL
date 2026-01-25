@@ -181,9 +181,14 @@ def collect_treasurehunt():
     # Policy 1: Random exploration with punishment on initial state
     # Stochastic policy that explores uniformly with penalty for staying at start
     r_search = np.ones(envr.num_states) * 0.1
+    # for s in range(envr.num_states):
+    #     x, y = envr.int_to_state(s)
+    #     terrain = envr.terrain_cost[x, y]
+    #     r_search[s] -= (terrain - 1) * 0.1
     r_search[envr.state_to_int(envr.initial_state)] = -0.5
+    r_search[envr.state_to_int(envr.goal_state)] = -0.5
     pi_search = vi_policy(num_states=envr.num_states, num_actions=envr.num_actions,
-                          P=envr.P, reward=r_search, discount=envr.gamma, stochastic=False)
+                          P=envr.P, reward=r_search, discount=envr.gamma, stochastic=True)
 
     # Policy 2: Target policy - go to goal while minimizing energy cost (terrain-aware)
     # Reward goal state highly, penalize high-cost terrain to encourage energy-efficient paths
@@ -192,17 +197,16 @@ def collect_treasurehunt():
     for s in range(envr.num_states):
         x, y = envr.int_to_state(s)
         terrain = envr.terrain_cost[x, y]
-        r_target[s] -= (terrain - 1) * 0.1  # terrain 1->-0, terrain 2->-0.1, terrain 3->-0.2
+        r_target[s] -= (terrain - 1) * 0.1
     pi_target = vi_policy(num_states=envr.num_states, num_actions=envr.num_actions,
                           P=envr.P, reward=r_target, discount=envr.gamma, stochastic=False)
 
-    pis = [pi_search, pi_target]
-
+    
     trajs = []
     latents = []
     observations = []
-
     for repeat in range(num_trajs):
+        pis = [pi_search, pi_target]
         traj = []
         latent = []
         obs_seq = []
@@ -218,8 +222,12 @@ def collect_treasurehunt():
             obs['state'] = int(s)
             obs_seq.append(obs)
             
-            if envr.has_treasure:
-                pi_idx = 1  # Switch to target policy
+            # Switch policy with probability based on energy remaining
+            if pi_idx == 0 and envr.has_treasure:
+                switch_prob = 1 - envr.energy / envr.initial_energy
+                # if np.random.uniform() < switch_prob:
+                if 1:
+                    pi_idx = 1  # Switch to target policy
             
             pi = pis[pi_idx]
             a = np.random.choice(envr.num_actions, p=pi[s])
