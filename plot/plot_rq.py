@@ -15,7 +15,7 @@ maze_info = np.load(env_folder + '/maze_info.npz', allow_pickle=True)
 m_wa, m_ru, m_xc, m_yc = maze_info['m_wa'], maze_info['m_ru'], maze_info['m_xc'], maze_info['m_yc']
 xy_list = np.load(env_folder + '/xy_list500new.npy', allow_pickle=True)
 
-ckpt_folder = 'outputs/labyrinth_train/pgiql/237/fold_4'
+ckpt_folder = 'outputs/labyrinth_train/pgiql/238/fold_0'
 num_folds = 5
 num_states = 127
 num_actions = 4
@@ -73,5 +73,5 @@ cbar.set_ticks([0, 1])
 cbar.set_ticklabels(['Start', 'End'])
 cbar.ax.tick_params(labelsize=18)
 
-plt.savefig(plot_folder + '/all_trajs_labyrinth.pdf')
-# plt.savefig(plot_folder + '/all_trajs_labyrinth.pdf', bbox_inches='tight')
+# plt.savefig(plot_folder + '/all_trajs_labyrinth.pdf')
+plt.savefig(plot_folder + '/all_trajs_labyrinth.pdf', bbox_inches='tight')

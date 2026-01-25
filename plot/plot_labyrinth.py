@@ -134,7 +134,7 @@ def plot_trajs(ma_wa, zs, xy_list, axs=None):
     if axs is None:
         fig, axs = plt.subplots(1, 3, figsize=(18,6), dpi=400)
 
-    def plot_single_map(ma_wa, ax, curr_xy_segments, note="", min_length=5):
+    def plot_single_map(ma_wa, ax, curr_xy_segments, note="", min_length=2):
         segs_list = []
         t_list = []
         # Draw the maze outline
@@ -178,24 +178,30 @@ def plot_trajs(ma_wa, zs, xy_list, axs=None):
 
         # Create a single LineCollection with all segments
         lc = LineCollection(all_segs, cmap=plt.get_cmap('viridis'), linewidths=2)
-        lc.set_array(all_t)  # Color the segments by the time parameter
+        # Normalize colors to span [0, 1] fully so colorbar covers Start->End without blank
+        from matplotlib.colors import Normalize
+        lc.set_norm(Normalize(vmin=0.0, vmax=1.0))
+        # Use segment-wise time values aligned to segments (length = n_segments)
+        # all_t currently comes from t[:-1]; ensure it spans [0,1]
+        if len(all_t) > 0:
+            # Rescale to [0,1] explicitly in case rounding stops at <1
+            tmin = float(np.min(all_t))
+            tmax = float(np.max(all_t))
+            if tmax > tmin:
+                all_t = (all_t - tmin) / (tmax - tmin)
+            else:
+                all_t = np.zeros_like(all_t)
+        lc.set_array(all_t)
 
         # Add the LineCollection to the axes
         lines = ax.add_collection(lc)
-
-        # # Add the color bar
-        # cax = fig.add_axes([1.05, 0.05, 0.05, 0.9])
-        # cbar = fig.colorbar(lines, cax=cax)
-        # cbar.set_ticks([0, 1])
-        # cbar.set_ticklabels(['Start', 'End'])
-        # cbar.ax.tick_params(labelsize=18)
         ax.set_title(note, fontsize=24)
         return lines
     
     notes = ['water', 'home', 'explore']
     lines_list = []
     for i in range(3):
-        lines = plot_single_map(ma_wa, axs[i], xy_segments[i], note=notes[i])
+        lines = plot_single_map(ma_wa, axs[i], xy_segments[i], note=notes[i], min_length=3)
         lines_list.append(lines)
     # plt.axis('off')
     if axs is None:
