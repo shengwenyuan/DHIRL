@@ -173,6 +173,8 @@ def plot_trajs(ma_wa, zs, xy_list, axs=None):
             t_list.append(t[:-1])  # t[:-1] since segments are between points
 
         # Concatenate all segments and time arrays
+        if not segs_list:  # No segments to plot
+            return None
         all_segs = np.concatenate(segs_list)
         all_t = np.concatenate(t_list)
 
@@ -201,7 +203,7 @@ def plot_trajs(ma_wa, zs, xy_list, axs=None):
     notes = ['water', 'home', 'explore']
     lines_list = []
     for i in range(3):
-        lines = plot_single_map(ma_wa, axs[i], xy_segments[i], note=notes[i], min_length=3)
+        lines = plot_single_map(ma_wa, axs[i], xy_segments[i], note=notes[i], min_length=2)
         lines_list.append(lines)
     # plt.axis('off')
     if axs is None:

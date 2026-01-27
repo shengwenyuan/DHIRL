@@ -37,7 +37,7 @@ from scipy.special import softmax
 
 # - - - plot on maze - - -
 fig, axes = plt.subplots(1, 3, figsize=(19,6), dpi=400)
-title_list = ['Water', 'Home', 'Explore']
+title_list = ['home', 'water', 'explore']
 color_list = ['blue', 'brown', 'lightblue']
 color_options = [
     (0.12156862745098039, 0.4666666666666667, 0.7058823529411765, 1.0),

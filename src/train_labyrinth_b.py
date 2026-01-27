@@ -66,6 +66,7 @@ if __name__ == '__main__':
                     if num_trajs == len_trajs:
                         param_dir = os.path.join(output_dir, f'pgiql/{num_trajs}/fold_{kf_idx}')
                         os.makedirs(param_dir, exist_ok=True)
+                        np.save(os.path.join(param_dir, f'test_trajs.npy'), test_trajs)
                         np.save(os.path.join(param_dir, f'f_train.npy'), f['train'])
                         np.save(os.path.join(param_dir, f'mask_train.npy'), mask['train'])
                         np.save(os.path.join(param_dir, f'f_test.npy'), f['test'])
