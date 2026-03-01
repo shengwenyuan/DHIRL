@@ -2,7 +2,7 @@ import os
 import json
 import numpy as np
 
-from gridworld import GridWorld, TreasureCollectionWorld
+from env.gridworld import GridWorld, TreasureCollectionWorld
 
 
 root = os.path.dirname(os.path.abspath(__file__))
