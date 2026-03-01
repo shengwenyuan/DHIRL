@@ -20,10 +20,6 @@ class IAVI:
 
         self.r = np.random.randn(self.num_states, self.num_actions)
         self.q = np.random.randn(self.num_states, self.num_actions)
-        X_tmp = np.full((self.num_actions, self.num_actions), -1 / (self.num_actions - 1))
-        np.fill_diagonal(X_tmp, 1.0)
-        self.X_tmp = X_tmp
-        self.X_inv = np.linalg.inv(X_tmp)
 
     def train(self):
         X = np.ones((self.num_actions, self.num_actions))
