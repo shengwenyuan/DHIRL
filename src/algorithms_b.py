@@ -94,29 +94,29 @@ class PGIAVI_B:
         #                                num_latents=self.num_latents, 
         #                                d_model=128, 
         #                                nhead=4,
-        #                                num_layers=2,
+        #                                num_layers=1,
         #                                dropout=0.2).to(self.device)
         # self.target_intention_net = IntentionTransformer(phi_dim=self.num_phis, 
         #                                num_latents=self.num_latents, 
         #                                d_model=128, 
         #                                nhead=4,
-        #                                num_layers=2,
+        #                                num_layers=1,
         #                                dropout=0.2).to(self.device)
         self.intention_net = StatesRNN(phi_dim=self.num_phis, 
                                        num_latents=self.num_latents, 
                                        hidden_dim=128, 
                                        rnn_hidden_dim=128, 
-                                       num_layers=4,
+                                       num_layers=1,
                                        dropout=0.3).to(self.device)
         self.target_intention_net = StatesRNN(phi_dim=self.num_phis, 
                                        num_latents=self.num_latents, 
                                        hidden_dim=128, 
                                        rnn_hidden_dim=128, 
-                                       num_layers=4,
+                                       num_layers=1,
                                        dropout=0.3).to(self.device)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
-        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=1e-3)
+        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=3e-3)
 
         self.state_emb = torch.nn.Embedding(self.num_states, 16).to('cpu')
         self.action_emb = torch.nn.Embedding(self.num_actions, 16).to('cpu')
@@ -227,14 +227,18 @@ class PGIAVI_B:
                     mask_curr = batch_mask[:, 1:]
                     mask_prev = batch_mask[:, :-1]
                     gamma_curr = batch_target_gamma[:, 1:, :]
-                    logf_curr = pred_logf[:, 1:, :]
-                    logf_prev = pred_logf[:, :-1, :]
+                    # logf_curr = pred_logf[:, 1:, :]
+                    # logf_prev = pred_logf[:, :-1, :]
+                    # kl = gamma_curr * (logf_curr - logf_prev)
+                    # kl = (kl * mask_curr.unsqueeze(-1)).sum(dim=-1).mean()
 
-                    kl = gamma_curr * (logf_curr - logf_prev)
-                    kl = (kl * mask_curr.unsqueeze(-1)).sum(dim=-1).mean()
+                    f_curr = pred_logits[:, 1:, :].softmax(dim=-1)
+                    f_prev = pred_logits[:, :-1, :].softmax(dim=-1)
+                    kl = f_prev * (torch.log(f_prev + 1e-8) - torch.log(f_curr + 1e-8))
+                    kl = (kl.sum(dim=-1) * mask_curr).mean()
                     kl_reg = kl_weight * kl
                 else:
-                    kl_reg = 0
+                    kl_reg = 0.
 
                 loss = nll_loss + kl_reg
                 loss.backward()
@@ -332,7 +336,7 @@ class PGIAVI_B:
                 logstep_q_time = 0
                 logstep_intention_time = 0
 
-            if (abs(total_loss) < 1e-2) or (logger_cnt >= 40):
+            if (abs(total_loss) < 5e-3) or (logger_cnt >= 40):
                 final_iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break
