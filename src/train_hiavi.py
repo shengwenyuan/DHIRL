@@ -19,10 +19,10 @@ if __name__ == '__main__':
         os.makedirs(output_dir)
     output_df = pd.DataFrame(columns=['num_trajs', 'fold', 'train_ll', 'test_ll'])
 
-    # envr = GridWorld()
-    # with open('../data/trajs.js') as f:
-    envr = TreasureCollectionWorld()
-    with open('data/gridworld/trajs_treasure.json') as f:
+    envr = GridWorld()
+    with open('data/gridworld/trajs.js') as f:
+    # envr = TreasureCollectionWorld()
+    # with open('data/gridworld/trajs_treasure.json') as f:
         trajs = json.load(f)
 
     kf = KFold(n_splits=num_folds, shuffle=True, random_state=10015)
