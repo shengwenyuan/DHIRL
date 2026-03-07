@@ -1,11 +1,3 @@
-"""
-Animate one trajectory example in 3D PCA space as a video.
-
-- Loads model and data, gets RNN hidden sequences, fits PCA to 3D.
-- Picks one trajectory and animates the point moving along the path in 3D.
-- Saves as GIF (pillow, no extra deps) or MP4 (requires ffmpeg).
-"""
-
 import os
 import json
 import argparse
@@ -14,9 +6,7 @@ import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
 from mpl_toolkits.mplot3d import Axes3D
-from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib import animation
 from sklearn.decomposition import PCA
 from sklearn.model_selection import KFold
@@ -111,20 +101,14 @@ def main():
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111, projection='3d')
 
-    # Faint full path so it doesn't obstruct the animation
     ax.plot(path_3d[:, 0], path_3d[:, 1], path_3d[:, 2],
-            'b-', alpha=0.12, linewidth=1.0)
+            'b-', alpha=0.4, linewidth=1.5)
     ax.scatter([path_3d[0, 0]], [path_3d[0, 1]], [path_3d[0, 2]],
-               c=[cm.viridis(0.0)], s=80, marker='o', zorder=5)
+               c='green', s=80, marker='o', zorder=5)
     point_artist, = ax.plot([path_3d[0, 0]], [path_3d[0, 1]], [path_3d[0, 2]],
-                            'o', color=cm.viridis(0.0), markersize=10, zorder=10)
-    # Trail as line collection: segments get fading alpha and time-based color.
-    # Initialize with one segment so add_collection3d gets valid bounds (empty list breaks auto_scale_xyz).
-    dummy_seg = path_3d[0:2] if len(path_3d) >= 2 else np.array([path_3d[0], path_3d[0]])
-    trail_collection = Line3DCollection([dummy_seg], linewidths=2.5, zorder=4,
-                                        colors=[(0, 0, 0, 0)])
-    ax.add_collection3d(trail_collection)
-    time_cmap = cm.viridis
+                            'ro', markersize=10, zorder=10)
+    trail_artist, = ax.plot(path_3d[0:1, 0], path_3d[0:1, 1], path_3d[0:1, 2],
+                            'r-', alpha=0.8, linewidth=2)
 
     margin = 0.1 * (path_3d.max() - path_3d.min()) or 0.5
     ax.set_xlim(path_3d[:, 0].min() - margin, path_3d[:, 0].max() + margin)
@@ -134,34 +118,19 @@ def main():
     def init():
         point_artist.set_data([], [])
         point_artist.set_3d_properties([])
-        trail_collection.set_segments([])
-        trail_collection.set_facecolors([])
-        trail_collection.set_edgecolors([])
-        return point_artist, trail_collection
+        trail_artist.set_data([], [])
+        trail_artist.set_3d_properties([])
+        return point_artist, trail_artist
 
     def update(frame):
         t = frame
-        # Current point color by time
-        t_norm = t / max(T - 1, 1)
         point_artist.set_data([path_3d[t, 0]], [path_3d[t, 1]])
         point_artist.set_3d_properties([path_3d[t, 2]])
-        point_artist.set_color(time_cmap(t_norm))
-
-        # Trail: segments from 0..t with fading alpha (old = transparent) and time color
-        if t >= 1:
-            segments = [path_3d[j : j + 2] for j in range(t)]
-            alphas = np.clip(0.08 + 0.92 * (np.arange(t, dtype=float) + 1) / t, 0, 1)
-            colors = np.array([time_cmap(j / max(t - 1, 1)) for j in range(t)], dtype=float)
-            colors[:, 3] = alphas
-            colors = np.clip(colors, 0, 1)
-            trail_collection.set_segments(segments)
-            trail_collection.set_edgecolors(colors)
-        else:
-            trail_collection.set_segments([])
-            trail_collection.set_edgecolors([])
-
+        trail_artist.set_data(path_3d[: t + 1, 0], path_3d[: t + 1, 1])
+        trail_artist.set_3d_properties(path_3d[: t + 1, 2])
+        
         ax.view_init(elev=args.elev, azim=args.azim_start + (args.azim_rotate * t / max(T - 1, 1)))
-        return point_artist, trail_collection
+        return point_artist, trail_artist
 
     anim = animation.FuncAnimation(
         fig, update, init_func=init, frames=T, interval=1000 // args.fps, blit=False
