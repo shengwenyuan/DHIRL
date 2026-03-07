@@ -1,6 +1,7 @@
 import numpy as np
-import torch
 import time
+import torch
+import torch.nn.functional as F
 
 from scipy.special import logsumexp
 from model.intention_b import StatesRNN, IntentionTransformer
@@ -83,7 +84,7 @@ class PGIAVI_B:
         self.num_latents = num_latents  # K
         self.num_states = num_states
         self.num_actions = num_actions
-        self.num_phis = 32              # φ
+        self.num_phis = num_states + num_actions     # φ
         self.P = P                      # env trans
         self.discount = discount
         self.train_trajs = train_trajs
@@ -177,8 +178,8 @@ class PGIAVI_B:
         states = torch.tensor([s for s, a, ns in traj], dtype=torch.long, device='cpu')
         actions = torch.tensor([a for s, a, ns in traj], dtype=torch.long, device='cpu')
 
-        s_emb = self.state_emb(states).detach()  # (T, E_S)
-        a_emb = self.action_emb(actions).detach()  # (T, E_A)
+        s_emb = F.one_hot(states, num_classes=self.num_states).float()  # (T, num_states)
+        a_emb = F.one_hot(actions, num_classes=self.num_actions).float()  # (T, num_actions)
         phis = torch.cat([s_emb, a_emb], dim=-1)  # (T, E_S + E_A)
 
         return phis
@@ -222,21 +223,21 @@ class PGIAVI_B:
                 # Compute nll_loss: negative log-likelihood
                 nll_loss = -(batch_target_gamma * pred_logf * batch_mask.unsqueeze(-1)).sum(dim=-1).mean()
 
-                # KL regularization
+                # L1 or KL regularization
                 if kl_weight > 0.:
                     mask_curr = batch_mask[:, 1:]
-                    mask_prev = batch_mask[:, :-1]
                     gamma_curr = batch_target_gamma[:, 1:, :]
-                    # logf_curr = pred_logf[:, 1:, :]
-                    # logf_prev = pred_logf[:, :-1, :]
-                    # kl = gamma_curr * (logf_curr - logf_prev)
-                    # kl = (kl * mask_curr.unsqueeze(-1)).sum(dim=-1).mean()
 
                     f_curr = pred_logits[:, 1:, :].softmax(dim=-1)
                     f_prev = pred_logits[:, :-1, :].softmax(dim=-1)
+
+                    l1 = gamma_curr * torch.abs(f_curr - f_prev)
+                    l1 = (l1.sum(dim=-1) * mask_curr).mean()
                     kl = f_prev * (torch.log(f_prev + 1e-8) - torch.log(f_curr + 1e-8))
                     kl = (kl.sum(dim=-1) * mask_curr).mean()
-                    kl_reg = kl_weight * kl
+
+                    kl_reg = kl_weight * l1
+                    # kl_reg = kl_weight * kl
                 else:
                     kl_reg = 0.
 
@@ -321,13 +322,13 @@ class PGIAVI_B:
             # * * * Update intention network * * *
             intention_start_time = time.time()
             # total_loss = self.train_batched(batch_phis, batch_target_gamma, num_epochs=1)
-            total_loss = self.train_minibatch(m_loader, max_len, num_epochs=1, kl_weight=0.05)
+            total_loss = self.train_minibatch(m_loader, max_len, num_epochs=1, kl_weight=0.375)
             intention_time = time.time() - intention_start_time
             logstep_intention_time += intention_time
 
             self.target_intention_net.load_state_dict(self.intention_net.state_dict())
 
-            if logger_cnt % 1 == 0:
+            if logger_cnt % 3 == 0:
                 iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Loss: {total_loss:.4f}, \n\
                        \tExpectation: {logstep_exp_time:.2f}s, Q-update: {logstep_q_time:.2f}s, Intention: {logstep_intention_time:.2f}s, \n\
@@ -336,7 +337,7 @@ class PGIAVI_B:
                 logstep_q_time = 0
                 logstep_intention_time = 0
 
-            if (abs(total_loss) < 5e-3) or (logger_cnt >= 40):
+            if (abs(total_loss) < 1e-2) or (logger_cnt >= 100):
                 final_iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break
