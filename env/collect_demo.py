@@ -169,6 +169,63 @@ def collect_barriercase():
     with open(os.path.join(data_dir, 'latents.json'), 'w') as f:
         json.dump(latents, f)
 
+def collect_frustrationcase():
+    num_trajs = 1024
+    frustration_rate = 0.15
+
+    envr = GridWorld()
+
+    r_goal = np.zeros(envr.num_states)
+    r_goal[envr.state_to_int(envr.goal_state)] = 1
+    v_goal = value_iteration(reward=r_goal, P=envr.P, num_actions=envr.num_actions,
+                             num_states=envr.num_states, discount=envr.gamma)
+    pi_goal = vi_policy(num_states=envr.num_states, num_actions=envr.num_actions,
+                        P=envr.P, reward=r_goal, discount=envr.gamma, stochastic=False)
+
+    r_return = np.zeros(envr.num_states)
+    r_return[envr.state_to_int(envr.initial_state)] = 1
+    v_return = value_iteration(reward=r_return, P=envr.P, num_actions=envr.num_actions,
+                               num_states=envr.num_states, discount=envr.gamma)
+    pi_return = vi_policy(num_states=envr.num_states, num_actions=envr.num_actions,
+                          P=envr.P, reward=r_return, discount=envr.gamma, stochastic=False)
+
+    pis = [pi_goal, pi_return]
+
+    trajs = []
+    latents = []
+    for repeat in range(num_trajs):
+        traj = []
+        latent = []
+        s = envr.state_to_int(envr.initial_state)
+        pi_idx = 0
+        frustration = 0
+        while True:
+            if envr.int_to_state(s) in envr.barriers:
+                frustration += 1
+                switch_prob = min(frustration * frustration_rate, 0.9)
+                if np.random.uniform() < switch_prob:
+                    pi_idx = 1 - pi_idx
+                    frustration = 0  # reset after switch
+
+            pi = pis[pi_idx]
+            a = np.random.choice(envr.num_actions, p=pi[s])
+            ns, done = envr.step(s, a)
+
+            traj.append([s, a, ns])
+            latent.append(pi_idx)
+            s = ns
+            if done:
+                break
+        trajs.append(traj)
+        latents.append(latent)
+
+    data_dir = os.path.join(root, '../data/gridworld')
+    os.makedirs(data_dir, exist_ok=True)
+    with open(os.path.join(data_dir, 'trajs_frustration.json'), 'w') as f:
+        json.dump(trajs, f)
+    with open(os.path.join(data_dir, 'latents_frustration.json'), 'w') as f:
+        json.dump(latents, f)
+
 def collect_treasurehunt():
     """
     Collect trajectories for treasure hunting scenario.
@@ -277,4 +334,5 @@ if __name__ == '__main__':
     np.random.seed(10015)
     
     # collect_barriercase()
-    collect_treasurehunt()
+    # collect_treasurehunt()
+    collect_frustrationcase()
