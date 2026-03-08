@@ -19,13 +19,11 @@ if __name__ == '__main__':
     output_df = pd.DataFrame(columns=['num_trajs', 'fold', 'train_ll', 'test_ll'])
 
     envr = GridWorld()
-    with open('data/gridworld/trajs.js') as f:
-    # envr = TreasureCollectionWorld()
-    # with open('data/gridworld/trajs_treasure.json') as f:
+    with open('data/gridworld/trajs_frustration.json') as f:
         trajs = json.load(f)
 
     kf = KFold(n_splits=num_folds, shuffle=True, random_state=10015)
-    for num_trajs in np.arange(24, 1025, 100):
+    for num_trajs in np.arange(1024, 1025, 100):
         for kf_idx, (train_idxes, test_idxes) in enumerate(kf.split(trajs[:num_trajs])):
             pi = np.zeros((envr.num_states, envr.num_actions))
             for train_idx in train_idxes:

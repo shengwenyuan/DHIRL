@@ -1,20 +1,8 @@
-"""
-Maximum Entropy IRL (tabular, state-visitation matching).
-Reference: src_max_causal_entropy (max causal entropy matches state-action; here we match state).
-P[s,a,s'] = P(s'|s,a). Soft value iteration + forward state occupancy + reward gradient on r(s).
-"""
-
 import numpy as np
 from scipy.special import logsumexp
 
 
 class MaxEntropyIRL:
-    """
-    Tabular Maximum Entropy IRL: match expert state visitation (not state-action).
-    Reward r(s); gradient ascent so that model state distribution μ(s) matches expert.
-    Uses soft Bellman (backward) and forward state occupancy, same structure as max_causal_entropy.
-    """
-
     def __init__(self, num_states, num_actions, P, expert_s_count, discount,
                  lr=0.1, threshold=1e-4, max_iter=500):
         # P: (S, A, S') = P(s'|s,a)

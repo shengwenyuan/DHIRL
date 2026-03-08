@@ -1,18 +1,8 @@
-"""
-Maximum Causal Entropy Inverse RL (tabular).
-P[s,a,s'] = P(s'|s,a). Soft value iteration + forward visitation + reward gradient.
-"""
-
 import numpy as np
 from scipy.special import logsumexp
 
 
 class MaxEnt:
-    """
-    Tabular Max Causal Entropy IRL: match expert state-action occupancy
-    via gradient ascent on reward. Uses soft Bellman and forward-backward passes.
-    """
-
     def __init__(self, num_states, num_actions, P, expert_sa_count, discount,
                  lr=0.1, threshold=1e-4, max_iter=500):
         # P: (S, A, S') = P(s'|s,a)

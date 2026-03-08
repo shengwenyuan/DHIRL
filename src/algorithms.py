@@ -1,6 +1,7 @@
 import numpy as np
-import torch
 import time
+import torch
+import torch.nn.functional as F
 
 from scipy.special import logsumexp
 from model.intention import IntentionNet, StatesRNN, IntentionTransformer
@@ -185,7 +186,7 @@ class PGIAVI:
         self.num_latents = num_latents  # K
         self.num_states = num_states
         self.num_actions = num_actions
-        self.num_phis = 24              # φ
+        self.num_phis = num_states + num_actions     # φ
         self.P = P                      # env trans
         self.discount = discount
         self.train_trajs = train_trajs
@@ -217,14 +218,14 @@ class PGIAVI:
                                        dropout=0.3)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
-        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=5e-3)
+        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=3e-3)
 
         self.state_emb = torch.nn.Embedding(self.num_states, 16)
         self.action_emb = torch.nn.Embedding(self.num_actions, 8)
 
     def intention_mapping(self, phis, log_pi):
         f_logits = self.target_intention_net(phis.unsqueeze(0)).squeeze(0)              # (T, K)
-        log_f = torch.log_softmax(f_logits, dim=-1) # TODO: MDP? set explicit prior: intention transition dynamics
+        log_f = torch.log_softmax(f_logits, dim=-1)
         log_joint = log_f + log_pi.T                # (T, K), log(f_k * π_k) = log P(z_t=k, a_t | s_t, phi_t)
         log_p_gamma = log_joint - torch.logsumexp(log_joint, dim=-1, keepdim=True)  # (T, K)
 
@@ -244,9 +245,9 @@ class PGIAVI:
     def encode_session_traj(self, traj):
         states = torch.tensor([s for s, a, ns in traj], dtype=torch.long)
         actions = torch.tensor([a for s, a, ns in traj], dtype=torch.long)
-        s_emb = self.state_emb(states)  # (T, 16)
-        a_emb = self.action_emb(actions)  # (T, 8)
-        phis = torch.cat([s_emb, a_emb], dim=-1)  # (T, 24)
+        s_emb = F.one_hot(states, num_classes=self.num_states).float()  # (T, num_states)
+        a_emb = F.one_hot(actions, num_classes=self.num_actions).float()  # (T, num_actions)
+        phis = torch.cat([s_emb, a_emb], dim=-1) # (T, E_S + E_A)
         return phis
     
     def train_batched(self, batch_phis, batch_target_gamma, num_epochs=1):
@@ -284,7 +285,7 @@ class PGIAVI:
                 expert_policy=uniform_policy,
                 discount=self.discount
             )
-            # agent.train()
+            agent.train()
             agents.append(agent)
 
         logger_cnt = 0
@@ -354,7 +355,7 @@ class PGIAVI:
 
             self.target_intention_net.load_state_dict(self.intention_net.state_dict())
 
-            if logger_cnt % 5 == 0:
+            if logger_cnt % 4 == 0:
                 iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Loss: {total_loss:.4f}, Q-update: {total_q_time:.2f}s, NN: {total_other_time:.2f}s, Total: {iteration_time:.2f}s')
                 total_q_time = 0

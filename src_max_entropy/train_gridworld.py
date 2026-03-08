@@ -1,8 +1,3 @@
-"""
-Gridworld experiment: Maximum Entropy IRL (state-visitation matching).
-Mirrors src_max_causal_entropy/train_gridworld.py but uses MaxEntropyIRL.
-"""
-
 import os
 import json
 
@@ -21,7 +16,7 @@ if __name__ == '__main__':
     output_df = pd.DataFrame(columns=['num_trajs', 'fold', 'train_ll', 'test_ll'])
 
     envr = GridWorld()
-    with open('data/gridworld/trajs.js') as f:
+    with open('data/gridworld/trajs_frustration.json') as f:
         trajs = json.load(f)
     P = np.transpose(envr.P, (0, 2, 1))  # (S, A, S')
 

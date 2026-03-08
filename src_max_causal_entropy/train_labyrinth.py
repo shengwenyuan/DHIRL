@@ -1,5 +1,3 @@
-"""Labyrinth experiment: Max Causal Entropy IRL. Data/output aligned with src/train_labyrinth."""
-
 import os
 import json
 import argparse

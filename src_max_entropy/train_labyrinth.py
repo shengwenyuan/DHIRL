@@ -1,8 +1,3 @@
-"""
-Labyrinth experiment: Maximum Entropy IRL (state-visitation matching).
-Mirrors src_max_causal_entropy/train_labyrinth.py but uses MaxEntropyIRL.
-"""
-
 import os
 import json
 import argparse
