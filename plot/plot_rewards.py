@@ -3,6 +3,8 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import patches
+from matplotlib.gridspec import GridSpec
+from matplotlib.lines import Line2D
 from matplotlib.colors import Normalize
 from matplotlib.cm import ScalarMappable
 from env.gridworld import GridWorld
@@ -34,7 +36,7 @@ LL_CSV = {
 MODEL_LABELS = {
     'max_causal_entropy': 'MaxCausalEnt',
     'max_entropy': 'MaxEnt',
-    'pgiql': 'PGIQL',
+    'pgiql': 'PGIAVI',
     'hiavi': 'HIAVI',
     'iavi': 'IAVI'
 }
@@ -128,12 +130,14 @@ def plot_reward_map_with_policy(ax, rewards, q_values, grid_size, title, cmap='v
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.grid(True, color='gray', linewidth=0.5, alpha=0.3)
-    ax.set_title(title, fontsize=11, fontweight='bold')
+    ax.set_title(title, fontsize=18)
     
-    # Add colorbar
+    # Add colorbar (sizes aligned with plot_heatmap hierarchy, larger)
     cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.set_label('Reward', fontsize=9)
-    cbar.ax.tick_params(labelsize=8)
+    cbar.set_label('reward', fontsize=14)
+    cbar.ax.tick_params(labelsize=13)
+    cbar.ax.yaxis.get_offset_text().set_visible(False)
+    cbar.ax.yaxis.set_major_formatter(plt.ScalarFormatter(useOffset=False))
     
     return im
 
@@ -184,53 +188,71 @@ def run():
             print(f"Warning: No data found for {model_name}")
             continue
         
-        label = MODEL_LABELS.get(model_name, model_name)
+        label = MODEL_LABELS.get(model_name, model_name.upper())
         
         if num_agents == 2:
             if len(data) >= 2:
                 model_data[label] = {
-                    'goal': (data[0][0], data[0][1]),  # r, q for agent 0
-                    'abandon': (data[1][0], data[1][1])  # r, q for agent 1
+                    'abandon': (data[0][0], data[0][1]),
+                    'goal': (data[1][0], data[1][1])
                 }
         else:
             if len(data) >= 1:
                 model_data[label] = {
-                    'goal': (data[0][0], data[0][1]),
-                    'abandon': (data[0][0], data[0][1])
+                    'abandon': (data[0][0], data[0][1]),
+                    'goal': (data[0][0], data[0][1])
                 }
     
     if not model_data:
         print("Error: No model data found!")
         return
     
-    # Create figure: 2 rows (goal, abandon) x n_models columns
     n_cols = len(model_data)
     n_rows = 2
-    
-    fig, axes = plt.subplots(n_rows, n_cols, 
-                            figsize=(5 * n_cols, 4.5 * n_rows), 
-                            dpi=150)
-    
-    # Handle single column case
-    if n_cols == 1:
-        axes = axes.reshape(-1, 1)
-    
+    gap_ratio = 0.006 # blank column width relative to one content column (for segment line)
+    has_gap = n_cols > 2 and gap_ratio > 0
+
+    if has_gap:
+        n_grid_cols = n_cols + 1
+        width_ratios = [1] * 2 + [gap_ratio] + [1] * (n_cols - 2)
+        fig = plt.figure(figsize=(5 * (n_cols + gap_ratio), 4.5 * n_rows), dpi=150)
+        gs = GridSpec(n_rows, n_grid_cols, figure=fig, width_ratios=width_ratios)
+        axes = np.empty((n_rows, n_cols), dtype=object)
+        for r in range(n_rows):
+            for c in range(n_cols):
+                gcol = c if c < 2 else c + 1
+                axes[r, c] = fig.add_subplot(gs[r, gcol])
+    else:
+        fig, axes = plt.subplots(n_rows, n_cols,
+                                figsize=(5 * n_cols, 4.5 * n_rows),
+                                dpi=150)
+        if n_cols == 1:
+            axes = axes.reshape(-1, 1)
+
     for col_idx, (model_label, intentions) in enumerate(model_data.items()):
         r_goal, q_goal = intentions['goal']
-        title_goal = f"{model_label} (goal)"
-        plot_reward_map_with_policy(axes[0, col_idx], r_goal, q_goal, 
+        # Top row: model name only (once per column); bottom row: no title
+        title_goal = model_label
+        plot_reward_map_with_policy(axes[0, col_idx], r_goal, q_goal,
                                     GRID_SIZE, title_goal)
-        
+
         r_abandon, q_abandon = intentions['abandon']
-        title_abandon = f"{model_label} (abandon)"
-        plot_reward_map_with_policy(axes[1, col_idx], r_abandon, q_abandon, 
-                                    GRID_SIZE, title_abandon)
-        
+        plot_reward_map_with_policy(axes[1, col_idx], r_abandon, q_abandon,
+                                    GRID_SIZE, '')  # no title, row label on left
+
         if col_idx == 0:
-            axes[0, col_idx].set_ylabel('Goal', fontsize=12, fontweight='bold')
-            axes[1, col_idx].set_ylabel('Abandon', fontsize=12, fontweight='bold')
-    
+            axes[0, col_idx].set_ylabel('\'goal\'', fontsize=18)
+            axes[1, col_idx].set_ylabel('\'abandon\'', fontsize=18)
+
     plt.tight_layout()
+
+    if n_cols > 2:
+        pos_left = axes[0, 1].get_position()
+        pos_right = axes[0, 2].get_position()
+        x_sep = (pos_left.x1 + pos_right.x0) / 2.0
+        sep = Line2D([x_sep + 0.0015, x_sep + 0.0015], [0.03, 0.97], transform=fig.transFigure,
+                    color='black', linewidth=3.0, linestyle=(0, (4, 4)), zorder=5)
+        fig.add_artist(sep)
     
     os.makedirs(os.path.dirname(OUT_FIG), exist_ok=True)
     plt.savefig(OUT_FIG, bbox_inches='tight', dpi=300)

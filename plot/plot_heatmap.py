@@ -26,8 +26,13 @@ LL_CSV = {
     'max_causal_entropy': os.path.join(OUTPUTS_TRAIN, 'll_max_causal_entropy.csv'),
     'max_entropy': os.path.join(OUTPUTS_TRAIN, 'll_max_entropy.csv'),
 }
-# Short labels for heatmap columns
-MODEL_LABELS = {'max_causal_entropy': 'MaxCausalEnt', 'max_entropy': 'MaxEnt'}
+MODEL_LABELS = {
+    'pgiql': 'PGIAVI',
+    'hiavi': 'HIAVI',
+    'iavi': 'IAVI',
+    'max_causal_entropy': 'MaxCausalEnt',
+    'max_entropy': 'MaxEnt',
+}
 
 
 def ground_truth_v(env):
@@ -134,7 +139,7 @@ def run():
             continue
         model_evd_data.append((model_name, V_goals_all, V_abandons_all))
         columns.append((V_goals_all[0], V_abandons_all[0]))
-        column_labels.append(MODEL_LABELS.get(model_name, model_name))
+        column_labels.append(MODEL_LABELS.get(model_name, model_name.upper()))
 
     n_rows = 2
     n_cols = len(columns)
@@ -179,17 +184,18 @@ def run():
         cbar1.set_ticklabels([f'{vmin:.3f}', f'{vmax:.3f}'])
 
     for model_name, V_goals_all, V_abandons_all in model_evd_data:
+        label = MODEL_LABELS.get(model_name, model_name.upper())
         mae_goal = [evd(V, v_goal_gt, s0)[0] for V in V_goals_all]
         s0_goal = [evd(V, v_goal_gt, s0)[1] for V in V_goals_all]
         m_mae_g, se_mae_g = mean_stderr(mae_goal)
         m_s0_g, se_s0_g = mean_stderr(s0_goal)
-        print(f'goal   col={model_name:12s} EVD_MAE={m_mae_g:.6f}±{se_mae_g:.6f}  EVD(s0)={m_s0_g:.6f}±{se_s0_g:.6f}')
+        print(f'goal   col={label:12s} EVD_MAE={m_mae_g:.6f}±{se_mae_g:.6f}  EVD(s0)={m_s0_g:.6f}±{se_s0_g:.6f}')
 
         mae_abandon = [evd(V, v_abandon_gt, s0)[0] for V in V_abandons_all]
         s0_abandon = [evd(V, v_abandon_gt, s0)[1] for V in V_abandons_all]
         m_mae_a, se_mae_a = mean_stderr(mae_abandon)
         m_s0_a, se_s0_a = mean_stderr(s0_abandon)
-        print(f'abandon col={model_name:12s} EVD_MAE={m_mae_a:.6f}±{se_mae_a:.6f}  EVD(s0)={m_s0_a:.6f}±{se_s0_a:.6f}')
+        print(f'abandon col={label:12s} EVD_MAE={m_mae_a:.6f}±{se_mae_a:.6f}  EVD(s0)={m_s0_a:.6f}±{se_s0_a:.6f}')
 
     plt.tight_layout()
     os.makedirs(os.path.dirname(OUT_FIG), exist_ok=True)
