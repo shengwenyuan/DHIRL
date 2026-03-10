@@ -14,18 +14,19 @@ from src_visualRNN.intention_b import StatesRNN
 
 
 def collect_hidden_sequences(model, trajs, device, batch_size=1024):
-    batch_phis, mask = model.encode_batch_trajs(trajs)
-    max_len = batch_phis.shape[1]
-    B, T, _ = batch_phis.shape
+    batch_states, batch_actions, mask = model.encode_batch_trajs(trajs)
+    max_len = batch_states.shape[1]
+    B, T = batch_states.shape
 
     all_h = []
     seq_lengths = mask.sum(dim=1).cpu().numpy().astype(int)
 
     with torch.no_grad():
-        batch_phis = batch_phis.to(device)
+        batch_states = batch_states.to(device)
+        batch_actions = batch_actions.to(device)
         mask = mask.to(device)
         _, h_sequence = model.target_intention_net.forward_with_hidden(
-            batch_phis, mask=mask, total_length=max_len
+            batch_states, batch_actions, mask=mask, total_length=max_len
         )
     # h_sequence: (B, T, rnn_hidden_dim)
     h_sequence = h_sequence.cpu().numpy()

@@ -26,13 +26,13 @@ from src_visualRNN.algorithms_b import PGIAVI_B
 
 def collect_hidden_sequences(model, trajs, device):
     """Return hidden state sequences (list of (L, D) arrays) and full matrix for PCA."""
-    batch_phis, mask = model.encode_batch_trajs(trajs)
-    max_len = batch_phis.shape[1]
+    batch_states, batch_actions, mask = model.encode_batch_trajs(trajs)
+    max_len = batch_states.shape[1]
     seq_lengths = mask.sum(dim=1).cpu().numpy().astype(int)
 
     with torch.no_grad():
         _, h_sequence = model.target_intention_net.forward_with_hidden(
-            batch_phis.to(device), mask=mask.to(device), total_length=max_len
+            batch_states.to(device), batch_actions.to(device), mask=mask.to(device), total_length=max_len
         )
     h_sequence = h_sequence.cpu().numpy()
 
