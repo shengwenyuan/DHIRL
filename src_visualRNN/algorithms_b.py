@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 from scipy.special import logsumexp
-from src_visualRNN.intention_b import IntentionRNN, IntentionTransformer
+from src_visualRNN.intention_b import IntentionRNN, IntentionLSTM, IntentionTransformer
 from torch.utils.data import DataLoader, TensorDataset
 
 

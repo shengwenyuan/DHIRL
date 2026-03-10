@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 
 from scipy.special import logsumexp
-from model.intention import IntentionNet, StatesRNN, IntentionTransformer
+from model.intention import IntentionRNN, IntentionLSTM, IntentionTransformer
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 
 
@@ -206,14 +206,14 @@ class PGIAVI:
         #                                nhead=4,
         #                                num_layers=1,
         #                                dropout=0.2)
-        self.intention_net = StatesRNN(num_states=self.num_states,
+        self.intention_net = IntentionRNN(num_states=self.num_states,
                                        num_actions=self.num_actions,
                                        num_latents=self.num_latents,
                                        hidden_dim=128, 
                                        rnn_hidden_dim=128, 
                                        num_layers=1,
                                        dropout=0.3)
-        self.target_intention_net = StatesRNN(num_states=self.num_states,
+        self.target_intention_net = IntentionRNN(num_states=self.num_states,
                                        num_actions=self.num_actions,
                                        num_latents=self.num_latents,
                                        hidden_dim=128, 

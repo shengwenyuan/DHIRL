@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 
 
-class StatesRNN(nn.Module):
+class IntentionRNN(nn.Module):
     def __init__(self, num_states, num_actions, num_latents, hidden_dim=128, rnn_hidden_dim=128, num_layers=1, dropout=0.1):
-        super(StatesRNN, self).__init__()
+        super(IntentionRNN, self).__init__()
         self.rnn_hidden_dim = rnn_hidden_dim
         self.num_layers = num_layers
         
@@ -21,13 +21,6 @@ class StatesRNN(nn.Module):
             batch_first=True,
             dropout=dropout if num_layers > 1 else 0
         )
-        # self.rnn = nn.LSTM(
-        #     input_size=hidden_dim,
-        #     hidden_size=rnn_hidden_dim,
-        #     num_layers=num_layers,
-        #     batch_first=True,
-        #     dropout=dropout if num_layers > 1 else 0
-        # )
         
         self.output_proj = nn.Linear(rnn_hidden_dim, num_latents)
 
@@ -45,7 +38,42 @@ class StatesRNN(nn.Module):
         logits = self.output_proj(rnn_out)           # (B, T, num_latents)
 
         return logits
-    
+
+
+class IntentionLSTM(nn.Module):
+    def __init__(self, num_states, num_actions, num_latents, hidden_dim=128, rnn_hidden_dim=128, num_layers=1, dropout=0.1):
+        super(IntentionLSTM, self).__init__()
+        self.rnn_hidden_dim = rnn_hidden_dim
+        self.num_layers = num_layers
+
+        self.state_embed = nn.Embedding(num_states, hidden_dim)
+        self.action_embed = nn.Embedding(num_actions, hidden_dim)
+
+        self.rnn = nn.LSTM(
+            input_size=hidden_dim,
+            hidden_size=rnn_hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0
+        )
+
+        self.output_proj = nn.Linear(rnn_hidden_dim, num_latents)
+
+    def forward(self, bs, ba, mask=None, total_length=None):
+        state_embeds = self.state_embed(bs)   # (B, T, hidden_dim)
+        action_embeds = self.action_embed(ba) # (B, T, hidden_dim)
+        x = state_embeds + action_embeds       # (B, T, hidden_dim)
+        if mask is not None:
+            lengths = mask.sum(dim=1)
+            x_packed = pack_padded_sequence(x, lengths.cpu(), batch_first=True, enforce_sorted=False)
+            rnn_out_packed, _ = self.rnn(x_packed)
+            rnn_out, _ = pad_packed_sequence(rnn_out_packed, batch_first=True, total_length=total_length)  # (B, T_max, rnn_hidden_dim)
+        else:
+            rnn_out, _ = self.rnn(x)
+        logits = self.output_proj(rnn_out)           # (B, T, num_latents)
+
+        return logits
+
 
 class IntentionTransformer(nn.Module):
     def __init__(self,
