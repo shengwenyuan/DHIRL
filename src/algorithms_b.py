@@ -13,7 +13,7 @@ class IAVI_B:
         self.num_states = num_states
         self.num_actions = num_actions
         self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
-        self.P = torch.as_tensor(P, dtype=torch.float64, device=self.device)
+        self.P = P
         self.expert_policy = torch.as_tensor(expert_policy, dtype=torch.float64, device=self.device)
         self.discount = discount
         self.threshold = threshold
@@ -26,7 +26,7 @@ class IAVI_B:
 
         X = torch.full((self.num_actions, self.num_actions), -1 / (self.num_actions - 1), dtype=torch.float64, device=self.device)
         X.fill_diagonal_(1.0)
-        self.X = X
+        self.X = X.cpu().numpy()
 
     def train(self):
         e = 0
@@ -50,9 +50,9 @@ class IAVI_B:
                 Y_batch = eta_batch - (eta_sum - eta_batch) / (self.num_actions - 1)  # (batch_size, num_actions)
 
                 # must convert to numpy for lstsq
-                tX = self.X.cpu().numpy()
+                tX = self.X
                 tY = Y_batch.cpu().numpy()
-                tr = np.linalg.lstsq(tX, tY.T, rcond=None)[0]
+                tr = np.linalg.lstsq(tX, tY.T, rcond=None)[0] # perform worse when using torch.linalg.lstsq. reason unclear
 
                 r_new_batch = torch.as_tensor(tr, dtype=torch.float64, device=self.device).T 
                 delta_batch = torch.max(torch.abs(self.r[sampled_indices] - r_new_batch)).item()
@@ -81,15 +81,15 @@ class IAVI_B:
 
 class PGIAVI_B:
     def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount):
-        self.num_latents = num_latents  # K
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.num_latents = num_latents      # K
         self.num_states = num_states
         self.num_actions = num_actions
         self.num_phis = num_states + num_actions     # φ
-        self.P = P                      # env trans
+        self.P = torch.as_tensor(P, dtype=torch.float64, device=self.device)      # env trans
         self.discount = discount
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         # self.intention_net = IntentionTransformer(phi_dim=self.num_phis, 
         #                                num_latents=self.num_latents, 
@@ -118,9 +118,6 @@ class PGIAVI_B:
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
         self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=3e-3)
-
-        self.state_emb = torch.nn.Embedding(self.num_states, 16).to('cpu')
-        self.action_emb = torch.nn.Embedding(self.num_actions, 16).to('cpu')
 
     def intention_batch_mapping(self, e_loader, total_length):
         log_p_gammas = []
@@ -175,8 +172,8 @@ class PGIAVI_B:
         return batch_log_pi
 
     def encode_session_traj(self, traj):
-        states = torch.tensor([s for s, a, ns in traj], dtype=torch.long, device='cpu')
-        actions = torch.tensor([a for s, a, ns in traj], dtype=torch.long, device='cpu')
+        states = torch.tensor([s for s, a, ns in traj], dtype=torch.long)
+        actions = torch.tensor([a for s, a, ns in traj], dtype=torch.long)
 
         s_emb = F.one_hot(states, num_classes=self.num_states).float()  # (T, num_states)
         a_emb = F.one_hot(actions, num_classes=self.num_actions).float()  # (T, num_actions)
@@ -322,7 +319,7 @@ class PGIAVI_B:
             # * * * Update intention network * * *
             intention_start_time = time.time()
             # total_loss = self.train_batched(batch_phis, batch_target_gamma, num_epochs=1)
-            total_loss = self.train_minibatch(m_loader, max_len, num_epochs=1, kl_weight=0.375)
+            total_loss = self.train_minibatch(m_loader, max_len, num_epochs=1, kl_weight=0.25)
             intention_time = time.time() - intention_start_time
             logstep_intention_time += intention_time
 
@@ -337,7 +334,7 @@ class PGIAVI_B:
                 logstep_q_time = 0
                 logstep_intention_time = 0
 
-            if (abs(total_loss) < 1e-2) or (logger_cnt >= 100):
+            if (abs(total_loss) < 1e-2) or (logger_cnt >= 120):
                 final_iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break
@@ -346,7 +343,7 @@ class PGIAVI_B:
         ll = {}
         mask = {}
         for ds in ['train', 'test']:
-            trajs = eval(f'self.{ds}_trajs')
+            trajs = self.train_trajs if ds == 'train' else self.test_trajs
             batch_phis_eval, mask_eval = self.encode_batch_trajs(trajs)
             max_len_eval = batch_phis_eval.shape[1]
             batch_log_pi_eval = self.get_batch_log_pi(trajs, agents)
@@ -373,7 +370,7 @@ class PGIAVI_B:
     def predict(self, trajs, agents):
         batch_phis, mask = self.encode_batch_trajs(trajs)
         max_len = batch_phis.shape[1]
-        batch_log_pi, _ = self.get_batch_log_pi(trajs, agents)
+        batch_log_pi = self.get_batch_log_pi(trajs, agents)
 
         eval_dataset = TensorDataset(batch_phis, batch_log_pi, mask)
         eval_loader = DataLoader(eval_dataset, batch_size=1024, shuffle=False)
