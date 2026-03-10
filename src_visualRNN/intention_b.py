@@ -4,9 +4,9 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 
 
-class StatesRNN(nn.Module):
+class IntentionRNN(nn.Module):
     def __init__(self, num_states, num_actions, num_latents, hidden_dim=128, rnn_hidden_dim=128, num_layers=1, dropout=0.1):
-        super(StatesRNN, self).__init__()
+        super(IntentionRNN, self).__init__()
         self.rnn_hidden_dim = rnn_hidden_dim
         self.num_layers = num_layers
 

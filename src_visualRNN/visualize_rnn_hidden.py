@@ -10,7 +10,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.decomposition import PCA
 
 from src_visualRNN.algorithms_b import PGIAVI_B
-from src_visualRNN.intention_b import StatesRNN
+from src_visualRNN.intention_b import IntentionRNN
 
 
 def collect_hidden_sequences(model, trajs, device, batch_size=1024):
