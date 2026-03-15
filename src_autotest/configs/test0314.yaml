@@ -2,8 +2,8 @@
 # Autotest config for src_autotest/train_labyrinth_b.py
 #
 # Usage (from DHIRL root):
-#   python -m src_autotest.run src_autotest/configs/test0313.yaml
-#   python -m src_autotest.run src_autotest/configs/test0313.yaml --groups model_comparison
+#   python -m src_autotest.run src_autotest/configs/test0314.yaml
+#   python -m src_autotest.run src_autotest/configs/test0314.yaml --groups model_comparison
 # ──────────────────────────────────────────────────────────────
 
 defaults:
@@ -32,65 +32,54 @@ defaults:
 # Each experiment only needs an id and the params that differ from defaults.
 groups:
 
-  # temp:
-  #   id: G00
-  #   description: "KL and different weights"
-  #   experiments:
-  #     - id: E01
-  #       reg_type: kl
-  #       reg_weight: 0.74
-  #     - id: E02
-  #       reg_type: kl
-  #       reg_weight: 0.80
-
   regularization:
     id: G01
     description: "L1 vs KL and different weights"
     experiments:
       - id: E01
         reg_type: l1
-        reg_weight: 1.85
-      # - id: E02
-      #   reg_type: l1
-      #   reg_weight: 1.90
-      - id: E03
-        reg_type: kl
-        reg_weight: 1.15
-      - id: E04
-        reg_type: kl
-        reg_weight: 1.20
-      # - id: E05
-      #   reg_type: kl
-      #   reg_weight: 1.20
-
-  num_epochs:
-    id: G02
-    description: "Impact of number of training epochs"
-    experiments:
-      - id: E01
-        model_type: IntentionRNN
-        num_epochs: 1
+        reg_weight: 1.90
       - id: E02
-        model_type: IntentionLSTM
-        num_epochs: 1
+        reg_type: l1
+        reg_weight: 1.95
       - id: E03
-        model_type: IntentionTransformer
-        num_epochs: 1
+        reg_type: kl
+        reg_weight: 1.18
       - id: E04
-        model_type: IntentionRNN
-        num_epochs: 5
+        reg_type: kl
+        reg_weight: 1.25
       - id: E05
-        model_type: IntentionLSTM
-        num_epochs: 5
-      - id: E06
-        model_type: IntentionTransformer
-        num_epochs: 5
-      - id: E07
-        model_type: IntentionRNN
-        num_epochs: 8
-      - id: E08
-        model_type: IntentionLSTM
-        num_epochs: 8
-      - id: E09
-        model_type: IntentionTransformer
-        num_epochs: 8
+        reg_type: kl
+        reg_weight: 1.30
+
+  # num_epochs:
+  #   id: G02
+  #   description: "Impact of number of training epochs"
+  #   experiments:
+  #     - id: E01
+  #       model_type: IntentionRNN
+  #       num_epochs: 1
+  #     - id: E02
+  #       model_type: IntentionLSTM
+  #       num_epochs: 1
+  #     - id: E03
+  #       model_type: IntentionTransformer
+  #       num_epochs: 1
+  #     - id: E04
+  #       model_type: IntentionRNN
+  #       num_epochs: 5
+  #     - id: E05
+  #       model_type: IntentionLSTM
+  #       num_epochs: 5
+  #     - id: E06
+  #       model_type: IntentionTransformer
+  #       num_epochs: 5
+  #     - id: E07
+  #       model_type: IntentionRNN
+  #       num_epochs: 8
+  #     - id: E08
+  #       model_type: IntentionLSTM
+  #       num_epochs: 8
+  #     - id: E09
+  #       model_type: IntentionTransformer
+  #       num_epochs: 8
