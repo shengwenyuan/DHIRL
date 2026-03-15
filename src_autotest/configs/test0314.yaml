@@ -49,22 +49,19 @@ groups:
     experiments:
       - id: E01
         reg_type: l1
-        reg_weight: 1.60
-      - id: E02
-        reg_type: l1
-        reg_weight: 1.80
+        reg_weight: 1.85
+      # - id: E02
+      #   reg_type: l1
+      #   reg_weight: 1.90
       - id: E03
         reg_type: kl
-        reg_weight: 0.85
+        reg_weight: 1.15
       - id: E04
         reg_type: kl
-        reg_weight: 0.90
-      - id: E05
-        reg_type: kl
-        reg_weight: 0.95
-      - id: E06
-        reg_type: kl
-        reg_weight: 1.00
+        reg_weight: 1.20
+      # - id: E05
+      #   reg_type: kl
+      #   reg_weight: 1.20
 
   num_epochs:
     id: G02

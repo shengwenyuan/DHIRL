@@ -321,7 +321,7 @@ class PGIAVI_B:
 
             self.target_intention_net.load_state_dict(self.intention_net.state_dict())
 
-            if logger_cnt % 3 == 0:
+            if logger_cnt % 4 == 0:
                 iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Loss: {total_loss:.4f}, \n\
                        \tExpectation: {logstep_exp_time:.2f}s, Q-update: {logstep_q_time:.2f}s, Intention: {logstep_intention_time:.2f}s, \n\
