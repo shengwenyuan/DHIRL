@@ -15,7 +15,9 @@ maze_info = np.load(env_folder + '/maze_info.npz', allow_pickle=True)
 m_wa, m_ru, m_xc, m_yc = maze_info['m_wa'], maze_info['m_ru'], maze_info['m_xc'], maze_info['m_yc']
 xy_list = np.load(env_folder + '/xy_list500new.npy', allow_pickle=True)
 
-ckpt_folder = 'outputs/labyrinth_train/pgiql/238/fold_0'
+ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0' # KL
+# ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0' # L1
+# ckpt_folder = 'outputs/labyrinth_train/pgiql/238/fold_0'
 num_folds = 5
 num_states = 127
 num_actions = 4
@@ -40,9 +42,9 @@ fig, axes = plt.subplots(1, 3, figsize=(19,6), dpi=400)
 title_list = ['home', 'water', 'explore']
 color_list = ['blue', 'brown', 'lightblue']
 color_options = [
-    (0.12156862745098039, 0.4666666666666667, 0.7058823529411765, 1.0),
-    (0.5490196078431373, 0.33725490196078434, 0.29411764705882354, 1.0),
-    (0.814, 0.661, 0.885, 0.9)
+    (128/255, 90/255, 61/255, 1.0),   # home:    "#805A3D"
+    (5/255, 103/255, 183/255, 1.0),   # water:   "#0567B7"
+    (201/255, 146/255, 123/255, 1.0), # explore: "#C9927B"
 ]
 for i in range(num_latents):
     policy = softmax(qvalues[i], axis=-1)  # (num_states, num_actions)

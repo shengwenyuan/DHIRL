@@ -1,25 +1,45 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-np.random.seed(42)
 
-models = ['3 intention - 2 layer RNN', '3 intention - 2 layer RNN', '3 intention - 2 layer RNN', '3 intention - 2 layer RNN']
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+# Model label, checkpoint folder, trajectory index (None for random)
+CONFIGS = [
+    ('L1 2.08', 'src_autotest/outputs/20260315_141343/G00/E06/238/fold_0', 0),
+    ('L1 2.12', 'src_autotest/outputs/20260315_141343/G00/E07/238/fold_0', 0),
+    # ('L1 2.16', 'src_autotest/outputs/20260315_141343/G00/E08/238/fold_0', 0),
+    ('L1 2.22', 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0', 0),
+    # ('L1 2.26', 'src_autotest/outputs/20260315_161732/G01/E02/238/fold_0', 0),
+    ('L1 2.32', 'src_autotest/outputs/20260315_161732/G01/E03/238/fold_0', 0),
+    # ('KL 1.43', 'src_autotest/outputs/20260315_161732/G01/E04/238/fold_0', 0),
+    # ('KL 1.48', 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0', 0),
+    # ('KL 1.36', 'src_autotest/outputs/20260315_051654/G01/E05/238/fold_0', 0),
+    # ('Max Ent',  'outputs/labyrinth_train/maxent_irl/237/fold_0', 0),
+]
+
+plot_folder = os.path.join(ROOT, 'outputs/labyrinth_train')
+# ============================================================
+
 n_steps = 500
-behaviors = ['home', 'water', 'explore', 'water port visit', 'home visit']
-colors = ['#008B8B', '#8B4513', '#BC8F8F', '#FFA500', '#DC143C']
+behaviors = ['explore', 'water', 'home', 'water port visit', 'home visit']
+colors = ["#C9927B", "#0567B7", "#805A3D", '#FFA500', '#DC143C']
 markers = ['s', 's', 's', 'o', 'x']
 
-plot_folder = os.path.abspath('outputs/labyrinth_train')
-ckpt_folder = os.path.abspath('outputs/labyrinth_train/pgiql/238/fold_0')
-traj_idx = 0
+np.random.seed(42)
+
+models = []
 zs_list = []
 traj_list = []
-for _ in models:
+for label, ckpt_rel, traj_idx in CONFIGS:
+    ckpt_folder = os.path.join(ROOT, ckpt_rel)
     f_mapping = np.load(ckpt_folder + '/f_test.npy')
     learnt_zs = np.argmax(f_mapping, axis=-1)
-    traj_idx = np.random.randint(0, len(learnt_zs))
-    zs = learnt_zs[traj_idx]
-    zs_list.append(zs)
+    if traj_idx is None:
+        traj_idx = np.random.randint(0, len(learnt_zs))
+    print(f"[{label}] trajectory index: {traj_idx}")
+    zs_list.append(learnt_zs[traj_idx])
+    models.append(label)
 
     test_trajs = np.load(ckpt_folder + '/test_trajs.npy')
     traj_list.append(test_trajs[traj_idx])
@@ -61,9 +81,9 @@ for i, (model, ax, model_zs, traj) in enumerate(zip(models, axes, zs_list, traj_
     # ax.text(-0.02, 0.5, '0', transform=ax.transAxes, ha='right', va='center')
     # ax.text(1.02, 0.5, str(n_steps), transform=ax.transAxes, ha='left', va='center')
 
-legend_elements = [plt.Line2D([0], [0], marker=markers[i], color='w', 
-                             markerfacecolor=colors[i], markersize=8, 
-                             label=behaviors[i]) 
+legend_elements = [plt.Line2D([0], [0], marker=markers[i], color='w',
+                             markerfacecolor=colors[i], markeredgecolor=colors[i], markersize=8,
+                             label=behaviors[i])
                     for i in range(len(behaviors))]
 fig.legend(handles=legend_elements, loc='lower center', ncol=5, frameon=True, 
            facecolor='white', edgecolor='black')
