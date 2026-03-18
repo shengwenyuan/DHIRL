@@ -6,16 +6,30 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 # Model label, checkpoint folder, trajectory index (None for random)
 CONFIGS = [
-    ('L1 2.08', 'src_autotest/outputs/20260315_141343/G00/E06/238/fold_0', 0),
-    ('L1 2.12', 'src_autotest/outputs/20260315_141343/G00/E07/238/fold_0', 0),
+    # ('L1 2.08', 'src_autotest/outputs/20260315_141343/G00/E06/238/fold_0', 0),
+    # ('L1 2.12', 'src_autotest/outputs/20260315_141343/G00/E07/238/fold_0', 0),
     # ('L1 2.16', 'src_autotest/outputs/20260315_141343/G00/E08/238/fold_0', 0),
-    ('L1 2.22', 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0', 0),
+    # ('L1 2.22', 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0', 0),
     # ('L1 2.26', 'src_autotest/outputs/20260315_161732/G01/E02/238/fold_0', 0),
-    ('L1 2.32', 'src_autotest/outputs/20260315_161732/G01/E03/238/fold_0', 0),
+    # ('L1 2.32', 'src_autotest/outputs/20260315_161732/G01/E03/238/fold_0', 0),
+    ('L1 3.10', 'src_autotest/outputs/20260316_115739/G00/E01/238/fold_0', 0),
+    # ('L1 3.40', 'src_autotest/outputs/20260316_115739/G00/E02/238/fold_0', 0),
     # ('KL 1.43', 'src_autotest/outputs/20260315_161732/G01/E04/238/fold_0', 0),
     # ('KL 1.48', 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0', 0),
-    # ('KL 1.36', 'src_autotest/outputs/20260315_051654/G01/E05/238/fold_0', 0),
-    # ('Max Ent',  'outputs/labyrinth_train/maxent_irl/237/fold_0', 0),
+    ('KL 1.36', 'src_autotest/outputs/20260315_051654/G01/E05/238/fold_0', 0),
+    # ('1.11+0.74',  'src_autotest/outputs/20260315_192657/G03/E01/238/fold_0', 0),
+    # ('2.22+1.48',  'src_autotest/outputs/20260315_192657/G03/E02/238/fold_0', 0),
+    # ('2.20+1.50',  'src_autotest/outputs/20260315_213426/G03/E01/238/fold_0', 0),
+    # ('2.10+1.60',  'src_autotest/outputs/20260315_213426/G03/E02/238/fold_0', 0),
+    # ('2.00+1.70',  'src_autotest/outputs/20260315_213426/G03/E03/238/fold_0', 0),
+    # ('1.66+1.00',  'src_autotest/outputs/20260315_213426/G03/E04/238/fold_0', 0),
+    # ('1.40+2.00',  'src_autotest/outputs/20260316_010525/G03/E05/238/fold_0', 0),
+    # ('1.20+2.00',  'src_autotest/outputs/20260316_010525/G03/E06/238/fold_0', 0),
+    # ('1.70+2.00',  'src_autotest/outputs/20260316_021625/G03/E05/238/fold_0', 0),
+    ('1.65+2.05',  'src_autotest/outputs/20260316_030402/G01/E01/238/fold_0', 0),
+    # ('1.60+2.10',  'src_autotest/outputs/20260316_030402/G01/E02/238/fold_0', 0),
+    ('1.50+2.20',  'src_autotest/outputs/20260316_030402/G01/E03/238/fold_0', 0),
+    # ('1.65+2.20',  'src_autotest/outputs/20260316_030402/G01/E04/238/fold_0', 0),
 ]
 
 plot_folder = os.path.join(ROOT, 'outputs/labyrinth_train')

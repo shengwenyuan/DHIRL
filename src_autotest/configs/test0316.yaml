@@ -1,0 +1,92 @@
+# ──────────────────────────────────────────────────────────────
+# Usage (from DHIRL root):
+#   python -m src_autotest.run src_autotest/configs/test0316.yaml
+# ──────────────────────────────────────────────────────────────
+
+# We locate the final step of regularization weight, then test num_epoch effects to locate RNN, LSTM, and Transformer models.
+defaults:
+  ll_filename: ll.csv
+  output_dir: src_autotest/outputs
+  num_repeats: 1
+  num_latents: 3
+  rand_seed: 42
+
+  model_type: IntentionRNN
+  hidden_dim: 128
+  rnn_hidden_dim: 128
+  num_layers: 1
+  dropout: 0.3
+  nhead: 4
+  lr: 0.001
+
+  reg_type: kl+l1
+  reg_weight: 1.70
+  kl_weight: 2.00
+
+  num_epochs: 3
+  loss_threshold: 0.05
+  max_iterations: 180
+
+
+# Each experiment only needs an id and the params that differ from defaults.
+groups:
+
+  tmp:
+    id: G00
+    description: "Temporary group for testing"
+    experiments:
+      - id: E01
+        reg_type: kl
+        kl_weight: 1.70
+      - id: E02
+        reg_type: kl
+        kl_weight: 2.20
+
+  kl_l1_combination:
+    id: G01
+    description: "Combined KL+L1 regularization with varying per-component weights"
+    experiments:
+      - id: E01
+        reg_type: kl+l1
+        reg_weight: 1.65
+        kl_weight: 2.05
+      - id: E02
+        reg_type: kl+l1
+        reg_weight: 1.60
+        kl_weight: 2.10
+      - id: E03
+        reg_type: kl+l1
+        reg_weight: 1.50
+        kl_weight: 2.20
+      - id: E04
+        reg_type: kl+l1
+        reg_weight: 1.65
+        kl_weight: 2.20
+
+
+  num_epochs:
+    id: G02
+    description: "Impact of number of training epochs"
+    experiments:
+      - id: E01
+        model_type: IntentionRNN
+        num_epochs: 1
+      - id: E02
+        model_type: IntentionLSTM
+        num_epochs: 1
+      - id: E03
+        model_type: IntentionTransformer
+        num_epochs: 1
+      - id: E04
+        model_type: IntentionRNN
+        num_epochs: 5
+      - id: E05
+        model_type: IntentionLSTM
+        num_epochs: 5
+      - id: E06
+        model_type: IntentionTransformer
+        num_epochs: 5
+      - id: E07
+        model_type: IntentionTransformer
+        num_epochs: 8
+    

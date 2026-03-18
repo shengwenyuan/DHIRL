@@ -15,7 +15,8 @@ maze_info = np.load(env_folder + '/maze_info.npz', allow_pickle=True)
 m_wa, m_ru, m_xc, m_yc = maze_info['m_wa'], maze_info['m_ru'], maze_info['m_xc'], maze_info['m_yc']
 xy_list = np.load(env_folder + '/xy_list500new.npy', allow_pickle=True)
 
-ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0' # KL
+ckpt_folder = 'src_autotest/outputs/20260316_021625/G03/E05/238/fold_0' # L1+KL
+# ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0' # KL
 # ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0' # L1
 # ckpt_folder = 'outputs/labyrinth_train/pgiql/238/fold_0'
 num_folds = 5

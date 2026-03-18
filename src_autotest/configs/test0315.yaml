@@ -23,6 +23,7 @@ defaults:
 
   reg_type: l1
   reg_weight: 2.16
+  kl_weight: 0.0
 
   num_epochs: 3
   loss_threshold: 0.05
@@ -65,6 +66,47 @@ groups:
       - id: E05
         reg_type: kl
         reg_weight: 1.48
+
+  kl_l1_combination:
+    id: G03
+    description: "Combined KL+L1 regularization with varying per-component weights"
+    experiments:
+      # - id: E01
+      #   reg_type: kl+l1
+      #   reg_weight: 1.11
+      #   kl_weight: 0.74
+      # - id: E02
+      #   reg_type: kl+l1
+      #   reg_weight: 2.22
+      #   kl_weight: 1.48
+      # - id: E01
+      #   reg_type: kl+l1
+      #   reg_weight: 2.20
+      #   kl_weight: 1.50
+      # - id: E02
+      #   reg_type: kl+l1
+      #   reg_weight: 2.10
+      #   kl_weight: 1.60
+      # - id: E03
+      #   reg_type: kl+l1
+      #   reg_weight: 2.00
+      #   kl_weight: 1.70
+      # - id: E04
+      #   reg_type: kl+l1
+      #   reg_weight: 1.66
+      #   kl_weight: 1.0
+      - id: E05
+        reg_type: kl+l1
+        reg_weight: 1.70
+        kl_weight: 2.00
+      # - id: E06
+      #   reg_type: kl+l1
+      #   reg_weight: 1.20
+      #   kl_weight: 2.00
+      # - id: E07
+      #   reg_type: kl+l1
+      #   reg_weight: 1.70
+      #   kl_weight: 1.50
 
   num_epochs:
     id: G02

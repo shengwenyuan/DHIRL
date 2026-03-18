@@ -1,0 +1,108 @@
+# ──────────────────────────────────────────────────────────────
+# Usage (from DHIRL root):
+#   python -m src_autotest.run src_autotest/configs/test0316.yaml
+# ──────────────────────────────────────────────────────────────
+
+# We have got the regularization weight, time to draw the big table containing RNN, LSTM, and Transformer models.
+defaults:
+  ll_filename: ll.csv
+  output_dir: src_autotest/outputs
+  num_repeats: 1
+  num_latents: 3
+  rand_seed: 42
+
+  model_type: IntentionRNN
+  hidden_dim: 128
+  rnn_hidden_dim: 128
+  num_layers: 1
+  dropout: 0.3
+  nhead: 4
+  lr: 0.001
+
+  reg_type: kl+l1
+  reg_weight: 1.70
+  kl_weight: 2.00
+
+  num_epochs: 3
+  loss_threshold: 0.1
+  max_iterations: 240
+
+
+# Each experiment only needs an id and the params that differ from defaults.
+groups:
+
+  # tmp:
+  #   id: G00
+  #   description: "Temporary group for testing"
+  #   experiments:
+  #     - id: E01
+  #       reg_type: kl
+  #       kl_weight: 1.70
+
+  big_table:
+    id: G01
+    description: "Impact of number of training epochs"
+    experiments:
+      - id: E01
+        model_type: IntentionRNN
+        num_latents: 1
+        num_epochs: 1
+      - id: E02
+        model_type: IntentionRNN
+        num_latents: 2
+        num_epochs: 1
+      - id: E03
+        model_type: IntentionRNN
+        num_latents: 3
+        num_epochs: 1
+      - id: E04
+        model_type: IntentionRNN
+        num_latents: 4
+        num_epochs: 1
+      - id: E05
+        model_type: IntentionRNN
+        num_latents: 5
+        num_epochs: 1
+
+      - id: E06
+        model_type: IntentionLSTM
+        num_latents: 1
+        num_epochs: 1
+      - id: E07
+        model_type: IntentionLSTM
+        num_latents: 2
+        num_epochs: 1
+      - id: E08
+        model_type: IntentionLSTM
+        num_latents: 3
+        num_epochs: 1
+      - id: E09
+        model_type: IntentionLSTM
+        num_latents: 4
+        num_epochs: 1
+      - id: E10
+        model_type: IntentionLSTM
+        num_latents: 5
+        num_epochs: 1
+
+      - id: E11
+        model_type: IntentionTransformer
+        num_latents: 1
+        num_epochs: 8
+      - id: E12
+        model_type: IntentionTransformer
+        num_latents: 2
+        num_epochs: 8
+      - id: E13
+        model_type: IntentionTransformer
+        num_latents: 3
+        num_epochs: 8
+      - id: E14
+        model_type: IntentionTransformer
+        num_latents: 4
+        num_epochs: 8
+      - id: E15
+        model_type: IntentionTransformer
+        num_latents: 5
+        num_epochs: 8
+    
