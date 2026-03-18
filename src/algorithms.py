@@ -114,10 +114,10 @@ class HIAVI:
         return logp_gammas, logp_xis, lls
 
     def fit(self):
-        p_init = np.abs(np.random.randn(2))
+        p_init = np.abs(np.random.randn(self.num_latents))
         p_init /= np.sum(p_init)
-        p_tr = 0.95 * np.identity(2)
-        p_tr += np.abs(np.random.normal(0, 0.05, (2, 2)))
+        p_tr = 0.95 * np.identity(self.num_latents)
+        p_tr += np.abs(np.random.normal(0, 0.05, (self.num_latents, self.num_latents)))
         p_tr /= np.sum(p_tr, axis=-1, keepdims=True)
         logp_init = np.log(p_init)
         logp_tr = np.log(p_tr)
