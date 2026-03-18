@@ -76,6 +76,7 @@ def plot_boxplot(entries):
 
     ax.set_ylabel('Test LL', fontsize=18)
     ax.grid(axis='y', alpha=0.75)
+    ax.tick_params(axis="both", labelsize=13)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     fig.savefig(OUTPUT_FILE, bbox_inches='tight', dpi=200)

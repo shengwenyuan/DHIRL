@@ -42,6 +42,7 @@ def plot_boxplot(files, labels):
     plt.ylabel('Test LL', fontsize=18)
     # plt.title('Gridworld: Frustration', fontsize=14)
     plt.grid(axis='y', alpha=0.75)
+    plt.gca().tick_params(axis='both', labelsize=13)
     # Bold the first column (pgiavi)
     for i, tick in enumerate(plt.gca().get_xticklabels()):
         tick.set_fontweight('bold' if i == 0 else 'normal')
@@ -54,7 +55,7 @@ def plot_boxplot(files, labels):
 
 # Display names: file base name (without ll_) -> label on plot (capital, pgiql -> PGIAVI)
 LABEL_RENAME = {
-    'max_causal_entropy': 'MaxCausalEnt',
+    'max_causal_entropy': 'MaxCE',
     'max_entropy': 'MaxEnt',
     'pgiql': 'PGIAVI',
     'hiavi': 'HIAVI',
