@@ -6,34 +6,37 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 # Model label, checkpoint folder, trajectory index (None for random)
 CONFIGS = [
-    ('L1 1.60', 'src_autotest/outputs/20260314_041004/G01/E01/238/fold_0', 0),
+    ('No reg', 'src_autotest/outputs/20260317_234859/G00/E00/238/fold_0', 0),
+    # ('L1 1.60', 'src_autotest/outputs/20260314_041004/G01/E01/238/fold_0', 0),
     # ('L1 1.80', 'src_autotest/outputs/20260314_041004/G01/E02/238/fold_0', 0),
     # ('L1 1.90', 'src_autotest/outputs/20260315_014424/G01/E01/238/fold_0', 0),
     # ('L1 2.08', 'src_autotest/outputs/20260315_141343/G00/E06/238/fold_0', 0),
     # ('L1 2.12', 'src_autotest/outputs/20260315_141343/G00/E07/238/fold_0', 0),
     # ('L1 2.16', 'src_autotest/outputs/20260315_141343/G00/E08/238/fold_0', 0),
-    # ('L1 2.22', 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0', 0),
+    ('L1 2.22', 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0', 0),
     # ('L1 2.26', 'src_autotest/outputs/20260315_161732/G01/E02/238/fold_0', 0),
     # ('L1 2.32', 'src_autotest/outputs/20260315_161732/G01/E03/238/fold_0', 0),
     # ('L1 3.10', 'src_autotest/outputs/20260316_115739/G00/E01/238/fold_0', 0),
     # ('L1 3.40', 'src_autotest/outputs/20260316_115739/G00/E02/238/fold_0', 0),
     # ('KL 1.43', 'src_autotest/outputs/20260315_161732/G01/E04/238/fold_0', 0),
-    # ('KL 1.48', 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0', 0),
+    ('KL 1.48', 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0', 0),
     # ('KL 1.36', 'src_autotest/outputs/20260315_051654/G01/E05/238/fold_0', 0),
     # ('KL 1.70', 'src_autotest/outputs/20260316_233519/G00/E01/238/fold_0', 0),
-    ('KL 2.20', 'src_autotest/outputs/20260316_233519/G00/E02/238/fold_0', 0),
-    # ('1.11+0.74',  'src_autotest/outputs/20260315_192657/G03/E01/238/fold_0', 0),
-    # ('2.22+1.48',  'src_autotest/outputs/20260315_192657/G03/E02/238/fold_0', 0),
-    # ('2.20+1.50',  'src_autotest/outputs/20260315_213426/G03/E01/238/fold_0', 0),
-    # ('2.10+1.60',  'src_autotest/outputs/20260315_213426/G03/E02/238/fold_0', 0),
-    # ('2.00+1.70',  'src_autotest/outputs/20260315_213426/G03/E03/238/fold_0', 0),
+    # ('KL 2.20', 'src_autotest/outputs/20260316_233519/G00/E02/238/fold_0', 0),
+    ('L1 1.11 + KL 0.74',  'src_autotest/outputs/20260315_192657/G03/E01/238/fold_0', 0),
+    # ('L1 1.11 + KL 1.48',  'src_autotest/outputs/20260317_234859/G00/E01/238/fold_0', 0),
+    ('L1 2.22 + KL 1.48',  'src_autotest/outputs/20260315_192657/G03/E02/238/fold_0', 0),
+    # ('L1 2.20 + KL 1.50',  'src_autotest/outputs/20260315_213426/G03/E01/238/fold_0', 0),
+    # ('L1 2.10 + KL 1.60',  'src_autotest/outputs/20260315_213426/G03/E02/238/fold_0', 0),
+    # ('L1 2.00 + KL 1.70',  'src_autotest/outputs/20260315_213426/G03/E03/238/fold_0', 0),
     # ('1.66+1.00',  'src_autotest/outputs/20260315_213426/G03/E04/238/fold_0', 0),
     # ('1.40+2.00',  'src_autotest/outputs/20260316_010525/G03/E05/238/fold_0', 0),
     # ('1.20+2.00',  'src_autotest/outputs/20260316_010525/G03/E06/238/fold_0', 0),
     # ('1.70+2.00',  'src_autotest/outputs/20260316_021625/G03/E05/238/fold_0', 0),
-    ('1.65+2.05',  'src_autotest/outputs/20260316_030402/G01/E01/238/fold_0', 0),
+    # ('1.70+2.00 long',  'src_autotest/outputs/20260317_015739/G01/E03/238/fold_0', 0), # Train longer time
+    # ('1.65+2.05',  'src_autotest/outputs/20260316_030402/G01/E01/238/fold_0', 0),
     # ('1.60+2.10',  'src_autotest/outputs/20260316_030402/G01/E02/238/fold_0', 0),
-    ('1.50+2.20',  'src_autotest/outputs/20260316_030402/G01/E03/238/fold_0', 0),
+    # ('1.50+2.20',  'src_autotest/outputs/20260316_030402/G01/E03/238/fold_0', 0),
     # ('1.65+2.20',  'src_autotest/outputs/20260316_030402/G01/E04/238/fold_0', 0),
 ]
 
@@ -65,7 +68,14 @@ for label, ckpt_rel, traj_idx in CONFIGS:
 
 
 # - - - plotting - - -
-fig, axes = plt.subplots(len(models), 1, figsize=(12, 4), sharex=True)
+ROW_H = 1.0       # inches per subplot row
+LEGEND_H = 0.4    # fixed inches reserved for legend at bottom
+n_rows = len(models)
+total_h = n_rows * ROW_H + LEGEND_H
+bottom_frac = LEGEND_H / total_h
+
+fig, axes = plt.subplots(n_rows, 1, figsize=(12, total_h), sharex=True, squeeze=False)
+axes = axes[:, 0]  # flatten to 1-D
 # fig.suptitle('', fontsize=14)
 
 for i, (model, ax, model_zs, traj) in enumerate(zip(models, axes, zs_list, traj_list)):
@@ -107,6 +117,6 @@ legend_elements = [plt.Line2D([0], [0], marker=markers[i], color='w',
 fig.legend(handles=legend_elements, loc='lower center', ncol=5, frameon=True, 
            facecolor='white', edgecolor='black')
 
-plt.tight_layout(rect=[0, 0.05, 1, 0.95])
+plt.tight_layout(rect=[0, bottom_frac, 1, 1.0])
 plt.savefig(plot_folder + '/trajectory_segment.pdf')
 plt.close()

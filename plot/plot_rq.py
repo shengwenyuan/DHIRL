@@ -15,9 +15,14 @@ maze_info = np.load(env_folder + '/maze_info.npz', allow_pickle=True)
 m_wa, m_ru, m_xc, m_yc = maze_info['m_wa'], maze_info['m_ru'], maze_info['m_xc'], maze_info['m_yc']
 xy_list = np.load(env_folder + '/xy_list500new.npy', allow_pickle=True)
 
-ckpt_folder = 'src_autotest/outputs/20260316_021625/G03/E05/238/fold_0' # L1+KL
-# ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0' # KL
-# ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0' # L1
+ckpt_folder = 'src_autotest/outputs/20260315_192657/G03/E02/238/fold_0' # L1 2.22 KL 1.48
+# ckpt_folder = 'src_autotest/outputs/20260315_213426/G03/E03/238/fold_0' # L1 2.00 KL 1.70
+# ckpt_folder = 'src_autotest/outputs/20260317_015739/G01/E03/238/fold_0' # L1 1.70 KL 2.00 ++
+# ckpt_folder = 'src_autotest/outputs/20260316_021625/G03/E05/238/fold_0' # L1 1.70 KL 2.00
+# ckpt_folder = 'src_autotest/outputs/20260316_233519/G00/E02/238/fold_0' # KL 2.20
+# ckpt_folder = 'src_autotest/outputs/20260316_233519/G00/E01/238/fold_0' # KL 1.70
+# ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E05/238/fold_0' # KL 1.48
+# ckpt_folder = 'src_autotest/outputs/20260315_161732/G01/E01/238/fold_0' # L1 2.22
 # ckpt_folder = 'outputs/labyrinth_train/pgiql/238/fold_0'
 num_folds = 5
 num_states = 127
@@ -40,12 +45,12 @@ from scipy.special import softmax
 
 # - - - plot on maze - - -
 fig, axes = plt.subplots(1, 3, figsize=(19,6), dpi=400)
-title_list = ['home', 'water', 'explore']
+title_list = ['explore', 'water', 'home']
 color_list = ['blue', 'brown', 'lightblue']
 color_options = [
-    (128/255, 90/255, 61/255, 1.0),   # home:    "#805A3D"
-    (5/255, 103/255, 183/255, 1.0),   # water:   "#0567B7"
     (201/255, 146/255, 123/255, 1.0), # explore: "#C9927B"
+    (5/255, 103/255, 183/255, 1.0),   # water:   "#0567B7"
+    (128/255, 90/255, 61/255, 1.0),   # home:    "#805A3D"
 ]
 for i in range(num_latents):
     policy = softmax(qvalues[i], axis=-1)  # (num_states, num_actions)
@@ -65,7 +70,7 @@ norm = plt.Normalize(vmin=0, vmax=1)  # Normalize values between 0 and 1
 plt.savefig(plot_folder + '/all_reward_maps_labyrinth.pdf')
 # plt.savefig(plot_folder + '/all_reward_maps_labyrinth.pdf', bbox_inches='tight')
 
-
+raise NotImplementedError()
 learnt_zs = np.argmax(f_mapping, axis=-1)  # (num_trajs, seq_len)
 fig, axs = plt.subplots(1, 3, figsize=(18,6), dpi=400)
 axs, lines_list = plot_trajs(m_wa, learnt_zs, xy_list, axs=axs)
