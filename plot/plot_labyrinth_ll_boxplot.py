@@ -11,6 +11,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo r
 #   ("display name", None, mean, std)      – synthetic box from mean ± std
 ENTRIES = [
     ("MaxEnt IRL",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_maxent_irl.csv")),
+    # ("MaxCausalEnt IRL",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_max_causal_entropy.csv")),
     ("IAVI",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_iavi.csv")),
     # ("HIAVI",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_hiavi.csv")),
     ("SWIRL(S-2)",     None, -0.7287, 0.00367),
@@ -18,17 +19,17 @@ ENTRIES = [
 ]
 # ─────────────────────────────────────────────────────────────────────────────
 
-DARK_COLORS = [
-    '#1f3b75',  # dark blue
-    '#3b2466',  # indigo
-    '#5a2a83',  # deep purple
-    '#1b5e5a',  # teal
-    '#2f5d3a',  # forest green
-    '#6b1d3b',  # maroon
-    '#5a3a2e',  # brown
-    '#34495e',  # slate
-    '#2c3e50',  # dark slate
-    '#4b3869',  # muted violet
+BRIGHT_COLORS = [
+    '#e74c3c',  # bright red
+    '#3498db',  # bright blue
+    '#2ecc71',  # bright green
+    '#e67e22',  # bright orange
+    '#9b59b6',  # bright purple
+    '#1abc9c',  # bright teal
+    '#f1c40f',  # bright yellow
+    '#e91e63',  # bright pink
+    '#00bcd4',  # bright cyan
+    '#ff5722',  # deep orange
 ]
 
 OUTPUT_DIR = os.path.join(ROOT_DIR, 'outputs/labyrinth_train')
@@ -69,11 +70,11 @@ def plot_boxplot(entries):
     )
 
     for i, box in enumerate(bp['boxes']):
-        box.set_facecolor(DARK_COLORS[i % len(DARK_COLORS)])
+        box.set_facecolor(BRIGHT_COLORS[i % len(BRIGHT_COLORS)])
         box.set_alpha(0.6)
         box.set_edgecolor('black')
 
-    ax.set_ylabel('Test LL', fontsize=16)
+    ax.set_ylabel('Test LL', fontsize=18)
     ax.grid(axis='y', alpha=0.75)
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)

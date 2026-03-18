@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 from plot_labyrinth import plot_trajs, PlotMazeFunction
+from align_latents import align_latents
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 env_folder = os.path.abspath('data/labyrinth/data')
@@ -37,6 +38,11 @@ for i in range(num_latents):
     qvalues.append(qvalue)
 rewards = np.array(rewards)  # (num_latents, num_states, num_actions)
 qvalues = np.array(qvalues)  # (num_latents, num_states, num_actions)
+
+perm = np.argsort(align_latents(ckpt_folder))  # perm[semantic_z] → raw_z
+rewards = rewards[perm]
+qvalues = qvalues[perm]
+
 f_mapping = np.load(ckpt_folder + '/f_train.npy')
 f_mapping = np.concatenate((f_mapping, np.load(ckpt_folder + '/f_test.npy')), axis=0)  # (num_trajs, seq_len, num_latents)
 
@@ -71,7 +77,8 @@ plt.savefig(plot_folder + '/all_reward_maps_labyrinth.pdf')
 # plt.savefig(plot_folder + '/all_reward_maps_labyrinth.pdf', bbox_inches='tight')
 
 raise NotImplementedError()
-learnt_zs = np.argmax(f_mapping, axis=-1)  # (num_trajs, seq_len)
+inv_perm = np.argsort(perm)
+learnt_zs = inv_perm[np.argmax(f_mapping, axis=-1)]  # (num_trajs, seq_len)
 fig, axs = plt.subplots(1, 3, figsize=(18,6), dpi=400)
 axs, lines_list = plot_trajs(m_wa, learnt_zs, xy_list, axs=axs)
 divider = make_axes_locatable(axs[-1])

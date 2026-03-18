@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from align_latents import align_latents
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -56,7 +59,8 @@ traj_list = []
 for label, ckpt_rel, traj_idx in CONFIGS:
     ckpt_folder = os.path.join(ROOT, ckpt_rel)
     f_mapping = np.load(ckpt_folder + '/f_test.npy')
-    learnt_zs = np.argmax(f_mapping, axis=-1)
+    inv_perm = align_latents(ckpt_folder)
+    learnt_zs = inv_perm[np.argmax(f_mapping, axis=-1)]
     if traj_idx is None:
         traj_idx = np.random.randint(0, len(learnt_zs))
     print(f"[{label}] trajectory index: {traj_idx}")
