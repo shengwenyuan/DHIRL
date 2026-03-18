@@ -29,8 +29,9 @@ if __name__ == '__main__':
     parser.add_argument('--nhead', type=int, default=4)
     parser.add_argument('--lr', type=float, default=1e-3)
 
-    parser.add_argument('--reg_type', type=str, default='l1', choices=['l1', 'kl'])
+    parser.add_argument('--reg_type', type=str, default='l1', choices=['l1', 'kl', 'kl+l1'])
     parser.add_argument('--reg_weight', type=float, default=0.35)
+    parser.add_argument('--kl_weight', type=float, default=0.0)
 
     parser.add_argument('--num_epochs', type=int, default=3)
     parser.add_argument('--loss_threshold', type=float, default=5e-2)
@@ -79,7 +80,7 @@ if __name__ == '__main__':
                     model_type=args.model_type, hidden_dim=args.hidden_dim,
                     rnn_hidden_dim=args.rnn_hidden_dim, num_layers=args.num_layers,
                     dropout=args.dropout, nhead=args.nhead, lr=args.lr,
-                    reg_type=args.reg_type, reg_weight=args.reg_weight,
+                    reg_type=args.reg_type, reg_weight=args.reg_weight, kl_weight=args.kl_weight,
                     num_epochs=args.num_epochs, loss_threshold=args.loss_threshold,
                     max_iterations=args.max_iterations,
                 )

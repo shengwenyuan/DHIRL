@@ -21,7 +21,7 @@ PARAM_KEYS = [
     'll_filename', 'output_dir', 'group_id',
     'num_repeats', 'num_latents', 'rand_seed',
     'model_type', 'hidden_dim', 'rnn_hidden_dim', 'num_layers', 'dropout', 'nhead', 'lr',
-    'reg_type', 'reg_weight',
+    'reg_type', 'reg_weight', 'kl_weight',
     'num_epochs', 'loss_threshold', 'max_iterations',
 ]
 

@@ -83,7 +83,7 @@ class PGIAVI_B:
     def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount,
                  model_type='IntentionRNN', hidden_dim=128, rnn_hidden_dim=128,
                  num_layers=1, dropout=0.3, nhead=4, lr=1e-3,
-                 reg_type='l1', reg_weight=0.35, num_epochs=3,
+                 reg_type='l1', reg_weight=0.35, kl_weight=0.0, num_epochs=3,
                  loss_threshold=5e-2, max_iterations=120):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.num_latents = num_latents
@@ -96,6 +96,7 @@ class PGIAVI_B:
 
         self.reg_type = reg_type
         self.reg_weight = reg_weight
+        self.kl_weight = kl_weight
         self.num_epochs = num_epochs
         self.loss_threshold = loss_threshold
         self.max_iterations = max_iterations
@@ -200,7 +201,7 @@ class PGIAVI_B:
 
         return batch_states, batch_actions, mask
     
-    def train_minibatch(self, m_loader, total_length, num_epochs=1, reg_weight=0., reg_type='l1'):
+    def train_minibatch(self, m_loader, total_length, num_epochs=1, reg_weight=0., reg_type='l1', kl_weight=0.):
         loss_list = []
         for epoch in range(num_epochs):
             total_loss = 0
@@ -217,7 +218,7 @@ class PGIAVI_B:
 
                 nll_loss = -(batch_target_gamma * pred_logf * batch_mask.unsqueeze(-1)).sum(dim=-1).mean()
 
-                if reg_weight > 0.:
+                if reg_weight > 0. or kl_weight > 0.:
                     mask_curr = batch_mask[:, 1:]
                     gamma_curr = batch_target_gamma[:, 1:, :]
 
@@ -229,8 +230,12 @@ class PGIAVI_B:
                     kl = f_prev * (torch.log(f_prev + 1e-8) - torch.log(f_curr + 1e-8))
                     kl = (kl.sum(dim=-1) * mask_curr).mean()
 
-                    reg = l1 if reg_type == 'l1' else kl
-                    kl_reg = reg_weight * reg
+                    if reg_type == 'kl+l1':
+                        kl_reg = reg_weight * l1 + kl_weight * kl
+                    elif reg_type == 'l1':
+                        kl_reg = reg_weight * l1
+                    else:  # kl
+                        kl_reg = reg_weight * kl
                 else:
                     kl_reg = 0.
 
@@ -315,7 +320,8 @@ class PGIAVI_B:
             # * * * Update intention network * * *
             intention_start_time = time.time()
             total_loss = self.train_minibatch(m_loader, max_len, num_epochs=self.num_epochs,
-                                              reg_weight=self.reg_weight, reg_type=self.reg_type)
+                                              reg_weight=self.reg_weight, reg_type=self.reg_type,
+                                              kl_weight=self.kl_weight)
             intention_time = time.time() - intention_start_time
             logstep_intention_time += intention_time
 
