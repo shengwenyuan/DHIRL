@@ -39,7 +39,7 @@ def _build_regions(num_states: int = 127):
         y = int(m_yc[m_ru[j][-1]])
         if 4 <= x <= 10 and 4 <= y <= 10:
             home.append(j)
-        if 8 <= x <= 14 and 8 <= y <= 14:
+        if 8 <= x <= 14 and 8 <= y <= 14 and not (8 <= x <= 10 and 12 <= y <= 14):
             water.append(j)
     return np.array(home), np.array(water)
 
@@ -97,15 +97,17 @@ def align_latents(ckpt_folder: str, num_latents: int = 3, split: str = 'test') -
     home_mask  = np.isin(states, HOME_REGION)   # (T, L) bool
     water_mask = np.isin(states, WATER_REGION)
 
-    # mean posterior for each latent z when inside each region
-    home_score  = np.array([f[:, :, z][home_mask].mean()  for z in range(num_latents)])
-    water_score = np.array([f[:, :, z][water_mask].mean() for z in range(num_latents)])
+    # Penalise posterior OUTSIDE each region: a well-concentrated latent
+    # has low mean posterior on the complement, so negate to get a score.
+    home_score  = np.array([-f[:, :, z][~home_mask].mean()  for z in range(num_latents)])
+    water_score = np.array([-f[:, :, z][~water_mask].mean() for z in range(num_latents)])
 
     home_score  = _norm(home_score)
     water_score = _norm(water_score)
     explore_score = 1.0 - _norm(home_score + water_score)
 
     # scores[latent, role], roles = ['explore', 'water', 'home']
-    scores = np.stack([explore_score, water_score, home_score], axis=1)
+    # scores = np.stack([explore_score, water_score, home_score], axis=1)
+    scores = np.stack([home_score, water_score, explore_score], axis=1)
     _, col_ind = linear_sum_assignment(-scores)
     return col_ind  # inv_perm[raw_z] = semantic_z

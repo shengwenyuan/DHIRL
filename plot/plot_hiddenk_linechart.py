@@ -6,8 +6,8 @@ import pandas as pd
 import yaml
 
 ROOT      = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-CONFIG    = os.path.join(ROOT, "src_autotest/configs/test0317.yaml")
-RUN_DIR   = os.path.join(ROOT, "src_autotest/outputs/20260317_015739")
+CONFIG    = os.path.join(ROOT, "src_autotest/configs/test0318.yaml")
+RUN_DIR   = os.path.join(ROOT, "src_autotest/outputs/20260318_193739")
 OUT_DIR   = os.path.join(ROOT, "outputs/labyrinth_train")
 GROUP     = "big_table"
 X_PARAM   = "num_latents"

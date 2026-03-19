@@ -10,8 +10,8 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # repo r
 #   ("display name", "path/to/file.csv")   – reads test_ll from first 5 rows
 #   ("display name", None, mean, std)      – synthetic box from mean ± std
 ENTRIES = [
-    ("MaxEnt IRL",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_maxent_irl.csv")),
-    # ("MaxCausalEnt IRL",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_max_causal_entropy.csv")),
+    ("MaxEnt",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_max_entropy.csv")),
+    ("MaxCE",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_max_causal_entropy.csv")),
     ("IAVI",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_iavi.csv")),
     # ("HIAVI",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_hiavi.csv")),
     ("SWIRL(S-2)",     None, -0.7287, 0.00367),
