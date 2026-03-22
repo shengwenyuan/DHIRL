@@ -58,7 +58,7 @@ class IAVI:
 
 
 class HIAVI:
-    def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount):
+    def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount, kl_weight=0.0):
         self.num_latents = num_latents
         self.num_states = num_states
         self.num_actions = num_actions
@@ -66,16 +66,24 @@ class HIAVI:
         self.discount = discount
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
+        self.kl_weight = kl_weight
 
     def _get_mc_probs(self, pis, trajs, logp_init, logp_tr):
         num_latents = logp_init.shape[0]
+        # KL(pi_l(·|s) || uniform) = log(K) - H(pi_l(·|s)) for each latent and state
+        kl_per_state = []
+        for l_idx in range(num_latents):
+            pi_l = pis[l_idx]  # (num_states, num_actions)
+            kl_l = np.sum(pi_l * np.log(pi_l + 1e-10), axis=1) + np.log(self.num_actions)  # (num_states,)
+            kl_per_state.append(kl_l)
         logp_gammas = []
         logp_xis = []
         lls = []
         for traj in trajs:
             logp_obs = []
             for s, a, ns in traj:
-                logp_obs.append([np.log(pis[l_idx][s, a]) for l_idx in range(num_latents)])
+                logp_obs.append([np.log(pis[l_idx][s, a]) - self.kl_weight * kl_per_state[l_idx][s]
+                                  for l_idx in range(num_latents)])
             logp_obs = np.array(logp_obs)
 
             logp_alpha_prev = logp_init + logp_obs[0]
@@ -209,23 +217,20 @@ class PGIAVI:
         self.intention_net = IntentionRNN(num_states=self.num_states,
                                        num_actions=self.num_actions,
                                        num_latents=self.num_latents,
-                                       hidden_dim=128, 
-                                       rnn_hidden_dim=128, 
+                                       hidden_dim=64, 
+                                       rnn_hidden_dim=64, 
                                        num_layers=1,
                                        dropout=0.3)
         self.target_intention_net = IntentionRNN(num_states=self.num_states,
                                        num_actions=self.num_actions,
                                        num_latents=self.num_latents,
-                                       hidden_dim=128, 
-                                       rnn_hidden_dim=128, 
+                                       hidden_dim=64, 
+                                       rnn_hidden_dim=64, 
                                        num_layers=1,
                                        dropout=0.3)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
-        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=3e-3)
-
-        self.state_emb = torch.nn.Embedding(self.num_states, 16)
-        self.action_emb = torch.nn.Embedding(self.num_actions, 8)
+        self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=1e-3)
 
     def intention_mapping(self, states, actions, log_pi):
         f_logits = self.target_intention_net(states.unsqueeze(0), actions.unsqueeze(0)).squeeze(0)              # (T, K)
@@ -372,7 +377,7 @@ class PGIAVI:
                 total_q_time = 0
                 total_other_time = 0
 
-            if abs(total_loss) < 5e-3 or logger_cnt >= 100:
+            if abs(total_loss) < 1e-3 or logger_cnt >= 100:
                 final_iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break
