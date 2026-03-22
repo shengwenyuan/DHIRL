@@ -4,6 +4,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 
+class IntentionNet(nn.Module):
+    def __init__(self, phi_dim, num_latents, hidden_dim=128):
+        super(IntentionNet, self).__init__()
+        self.fc1 = nn.Linear(phi_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        self.fc3 = nn.Linear(hidden_dim, num_latents)
+        self._non_linearity = F.relu
+
+    def forward(self, x):
+        x = self._non_linearity(self.fc1(x))
+        x = self._non_linearity(self.fc2(x))
+        return self.fc3(x)
+
 
 class IntentionRNN(nn.Module):
     def __init__(self, num_states, num_actions, num_latents, hidden_dim=128, rnn_hidden_dim=128, num_layers=1, dropout=0.1):

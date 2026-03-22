@@ -1,0 +1,132 @@
+# ──────────────────────────────────────────────────────────────
+# Usage (from DHIRL root):
+#   python -m src_autotest.run src_autotest/configs/test0318.yaml
+# ──────────────────────────────────────────────────────────────
+
+# 
+defaults:
+  ll_filename: ll.csv
+  output_dir: src_autotest/outputs
+  num_repeats: 1
+  num_latents: 3
+  rand_seed: 42
+
+  model_type: IntentionRNN
+  hidden_dim: 128
+  rnn_hidden_dim: 128
+  num_layers: 1
+  dropout: 0.3
+  nhead: 4
+  lr: 0.001
+
+  reg_type: kl+l1
+  reg_weight: 2.22
+  kl_weight: 1.48
+
+  num_epochs: 3
+  loss_threshold: 0.05
+  max_iterations: 300
+
+
+# Each experiment only needs an id and the params that differ from defaults.
+groups:
+
+  # tmp:
+  #   id: G00
+  #   description: "Temporary group for testing"
+  #   experiments:
+  #     - id: E00
+  #       reg_type: kl+l1
+  #       reg_weight: 0.0
+  #       kl_weight: 0.0
+  #       loss_threshold: 0.01
+  #       max_iterations: 180
+  #     - id: E01
+  #       reg_type: kl+l1
+  #       reg_weight: 1.11
+  #       kl_weight: 1.48
+  #       max_iterations: 200
+      # - id: E02
+      #   reg_type: kl+l1
+      #   reg_weight: 1.70
+      #   kl_weight: 2.00
+      #   max_iterations: 400
+
+  big_table:
+    id: G01
+    description: "Impact of number of training epochs"
+    experiments:
+      - id: E01
+        model_type: IntentionRNN
+        num_latents: 1
+        num_epochs: 1
+      - id: E02
+        model_type: IntentionRNN
+        num_latents: 2
+        num_epochs: 1
+      - id: E03
+        model_type: IntentionRNN
+        num_latents: 3
+        num_epochs: 1
+      - id: E04
+        model_type: IntentionRNN
+        num_latents: 4
+        num_epochs: 1
+      - id: E05
+        model_type: IntentionRNN
+        num_latents: 5
+        num_epochs: 1
+      - id: E05b
+        model_type: IntentionRNN
+        num_latents: 6
+        num_epochs: 1
+
+      - id: E06
+        model_type: IntentionLSTM
+        num_latents: 1
+        num_epochs: 1
+      - id: E07
+        model_type: IntentionLSTM
+        num_latents: 2
+        num_epochs: 1
+      - id: E08
+        model_type: IntentionLSTM
+        num_latents: 3
+        num_epochs: 1
+      - id: E09
+        model_type: IntentionLSTM
+        num_latents: 4
+        num_epochs: 1
+      - id: E10
+        model_type: IntentionLSTM
+        num_latents: 5
+        num_epochs: 1
+      - id: E10b
+        model_type: IntentionLSTM
+        num_latents: 6
+        num_epochs: 1
+
+      - id: E11
+        model_type: IntentionTransformer
+        num_latents: 1
+        num_epochs: 8
+      - id: E12
+        model_type: IntentionTransformer
+        num_latents: 2
+        num_epochs: 8
+      - id: E13
+        model_type: IntentionTransformer
+        num_latents: 3
+        num_epochs: 8
+      - id: E14
+        model_type: IntentionTransformer
+        num_latents: 4
+        num_epochs: 8
+      - id: E15
+        model_type: IntentionTransformer
+        num_latents: 5
+        num_epochs: 8
+      - id: E15b
+        model_type: IntentionTransformer
+        num_latents: 6
+        num_epochs: 8
