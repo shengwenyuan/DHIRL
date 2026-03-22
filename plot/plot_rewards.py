@@ -193,8 +193,8 @@ def run():
         if num_agents == 2:
             if len(data) >= 2:
                 model_data[label] = {
-                    'abandon': (data[0][0], data[0][1]),
-                    'goal': (data[1][0], data[1][1])
+                    'goal': (data[0][0], data[0][1]),
+                    'abandon': (data[1][0], data[1][1])
                 }
         else:
             if len(data) >= 1:
