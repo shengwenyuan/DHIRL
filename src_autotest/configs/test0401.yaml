@@ -31,23 +31,6 @@ defaults:
 # Each experiment only needs an id and the params that differ from defaults.
 groups:
 
-  K6:
-    id: G00
-    description: "amend case K=6"
-    experiments:
-      - id: E01
-        model_type: IntentionRNN
-        num_latents: 6
-        num_epochs: 1
-      - id: E02
-        model_type: IntentionLSTM
-        num_latents: 6
-        num_epochs: 1
-      - id: E03
-        model_type: IntentionTransformer
-        num_latents: 6
-        num_epochs: 8
-
   big_table:
     id: G01
     description: "Impact of number of training epochs"
@@ -55,63 +38,75 @@ groups:
       - id: E01
         model_type: IntentionRNN
         num_latents: 1
-        num_epochs: 1
+        num_epochs: 3
       - id: E02
         model_type: IntentionRNN
         num_latents: 2
-        num_epochs: 1
+        num_epochs: 3
       - id: E03
         model_type: IntentionRNN
         num_latents: 3
-        num_epochs: 1
+        num_epochs: 3
       - id: E04
         model_type: IntentionRNN
         num_latents: 4
-        num_epochs: 1
+        num_epochs: 3
       - id: E05
         model_type: IntentionRNN
         num_latents: 5
-        num_epochs: 1
-
+        num_epochs: 3
       - id: E06
-        model_type: IntentionLSTM
-        num_latents: 1
-        num_epochs: 1
+        model_type: IntentionRNN
+        num_latents: 6
+        num_epochs: 3
+
       - id: E07
         model_type: IntentionLSTM
-        num_latents: 2
-        num_epochs: 1
+        num_latents: 1
+        num_epochs: 3
       - id: E08
         model_type: IntentionLSTM
-        num_latents: 3
-        num_epochs: 1
+        num_latents: 2
+        num_epochs: 3
       - id: E09
         model_type: IntentionLSTM
-        num_latents: 4
-        num_epochs: 1
+        num_latents: 3
+        num_epochs: 3
       - id: E10
         model_type: IntentionLSTM
-        num_latents: 5
-        num_epochs: 1
-
+        num_latents: 4
+        num_epochs: 3
       - id: E11
-        model_type: IntentionTransformer
-        num_latents: 1
-        num_epochs: 8
+        model_type: IntentionLSTM
+        num_latents: 5
+        num_epochs: 3
       - id: E12
-        model_type: IntentionTransformer
-        num_latents: 2
-        num_epochs: 8
+        model_type: IntentionLSTM
+        num_latents: 6
+        num_epochs: 3
+
       - id: E13
         model_type: IntentionTransformer
-        num_latents: 3
+        num_latents: 1
         num_epochs: 8
       - id: E14
         model_type: IntentionTransformer
-        num_latents: 4
+        num_latents: 2
         num_epochs: 8
       - id: E15
         model_type: IntentionTransformer
+        num_latents: 3
+        num_epochs: 8
+      - id: E16
+        model_type: IntentionTransformer
+        num_latents: 4
+        num_epochs: 8
+      - id: E17
+        model_type: IntentionTransformer
         num_latents: 5
+        num_epochs: 8
+      - id: E18
+        model_type: IntentionTransformer
+        num_latents: 6
         num_epochs: 8
     
