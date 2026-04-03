@@ -80,7 +80,8 @@ class IAVI_B:
 
 
 class PGIAVI_B:
-    def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount):
+    def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount,
+                 reg_type='kl+l1', reg_weight=2.22, kl_weight=1.48):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.num_latents = num_latents      # K
         self.num_states = num_states
@@ -89,6 +90,9 @@ class PGIAVI_B:
         self.discount = discount
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
+        self.reg_type = reg_type
+        self.reg_weight = reg_weight
+        self.kl_weight = kl_weight
 
         # self.intention_net = IntentionTransformer(num_states=self.num_states,
         #                                num_actions=self.num_actions,
@@ -204,11 +208,7 @@ class PGIAVI_B:
 
         return batch_states, batch_actions, mask
     
-    def train_minibatch(self, m_loader, total_length, num_epochs=1, kl_weight=0.):
-        """
-        :param agents: List of IAVI agents
-        :param num_epochs: Number of passes through the data
-        """
+    def train_minibatch(self, m_loader, total_length, num_epochs=1, reg_weight=0., reg_type='l1', kl_weight=0.):
         loss_list = []
         for epoch in range(num_epochs):
             total_loss = 0
@@ -222,12 +222,12 @@ class PGIAVI_B:
 
                 pred_logits = self.intention_net(batch_states, batch_actions, mask=batch_mask, total_length=total_length)  # (B, T, K)
                 pred_logf = torch.log_softmax(pred_logits, dim=-1)  # (B, T, K)
-                
+
                 # Compute nll_loss: negative log-likelihood
                 nll_loss = -(batch_target_gamma * pred_logf * batch_mask.unsqueeze(-1)).sum(dim=-1).mean()
 
-                # L1 or KL regularization
-                if kl_weight > 0.:
+                # L1 and/or KL regularization
+                if reg_weight > 0. or kl_weight > 0.:
                     mask_curr = batch_mask[:, 1:]
                     gamma_curr = batch_target_gamma[:, 1:, :]
 
@@ -239,8 +239,12 @@ class PGIAVI_B:
                     kl = f_prev * (torch.log(f_prev + 1e-8) - torch.log(f_curr + 1e-8))
                     kl = (kl.sum(dim=-1) * mask_curr).mean()
 
-                    kl_reg = kl_weight * l1
-                    # kl_reg = kl_weight * kl
+                    if reg_type == 'kl+l1':
+                        kl_reg = reg_weight * l1 + kl_weight * kl
+                    elif reg_type == 'l1':
+                        kl_reg = reg_weight * l1
+                    else:  # kl
+                        kl_reg = reg_weight * kl
                 else:
                     kl_reg = 0.
 
@@ -249,7 +253,7 @@ class PGIAVI_B:
                 self.optimizer.step()
                 total_loss += loss.item()
             loss_list.append(total_loss)
-        
+
         return np.mean(loss_list)
     
     def fit(self):
@@ -324,8 +328,9 @@ class PGIAVI_B:
 
             # * * * Update intention network * * *
             intention_start_time = time.time()
-            # total_loss = self.train_minibatch(m_loader, max_len, num_epochs=10, kl_weight=0.25)
-            total_loss = self.train_minibatch(m_loader, max_len, num_epochs=3, kl_weight=0.35)
+            total_loss = self.train_minibatch(m_loader, max_len, num_epochs=3,
+                                              reg_weight=self.reg_weight, reg_type=self.reg_type,
+                                              kl_weight=self.kl_weight)
             intention_time = time.time() - intention_start_time
             logstep_intention_time += intention_time
 
@@ -340,7 +345,7 @@ class PGIAVI_B:
                 logstep_q_time = 0
                 logstep_intention_time = 0
 
-            if (abs(total_loss) < 5e-2) or (logger_cnt >= 120):
+            if (abs(total_loss) < 0.1) or (logger_cnt >= 140):
                 final_iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break

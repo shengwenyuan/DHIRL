@@ -1,6 +1,6 @@
 # ──────────────────────────────────────────────────────────────
 # Usage (from DHIRL root):
-#   python -m src_autotest.run src_autotest/configs/test0331.yaml
+#   python -m src_autotest.run src_autotest/configs/test0401.yaml
 # ──────────────────────────────────────────────────────────────
 
 # We have got the regularization weight, time to draw the big table containing RNN, LSTM, and Transformer models.
@@ -30,6 +30,38 @@ defaults:
 
 # Each experiment only needs an id and the params that differ from defaults.
 groups:
+  tmp:
+    description: "Impact of number of training epochs"
+    experiments:
+      - id: E12
+        model_type: IntentionLSTM
+        num_latents: 6
+        num_epochs: 3
+
+      - id: E13
+        model_type: IntentionTransformer
+        num_latents: 1
+        num_epochs: 8
+      - id: E14
+        model_type: IntentionTransformer
+        num_latents: 2
+        num_epochs: 8
+      - id: E15
+        model_type: IntentionTransformer
+        num_latents: 3
+        num_epochs: 8
+      - id: E16
+        model_type: IntentionTransformer
+        num_latents: 4
+        num_epochs: 8
+      - id: E17
+        model_type: IntentionTransformer
+        num_latents: 5
+        num_epochs: 8
+      - id: E18
+        model_type: IntentionTransformer
+        num_latents: 6
+        num_epochs: 8
 
   big_table:
     id: G01
