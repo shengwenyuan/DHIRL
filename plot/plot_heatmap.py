@@ -27,7 +27,7 @@ LL_CSV = {
     'max_entropy': os.path.join(OUTPUTS_TRAIN, 'll_max_entropy.csv'),
 }
 MODEL_LABELS = {
-    'pgiql': 'PGIAVI',
+    'pgiql': 'PRISM',
     'hiavi': 'HIAVI',
     'iavi': 'IAVI',
     'max_causal_entropy': 'MaxCausalEnt',

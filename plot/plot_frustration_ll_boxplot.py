@@ -53,11 +53,11 @@ def plot_boxplot(files, labels):
     print(f'Saved: {out_path}')
 
 
-# Display names: file base name (without ll_) -> label on plot (capital, pgiql -> PGIAVI)
+# Display names: file base name (without ll_) -> label on plot (capital, pgiql -> PRISM)
 LABEL_RENAME = {
     'max_causal_entropy': 'MaxCE',
     'max_entropy': 'MaxEnt',
-    'pgiql': 'PGIAVI',
+    'pgiql': 'PRISM',
     'hiavi': 'HIAVI',
     'iavi': 'IAVI',
 }

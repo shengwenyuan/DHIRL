@@ -36,7 +36,7 @@ LL_CSV = {
 MODEL_LABELS = {
     'max_causal_entropy': 'MaxCausalEnt',
     'max_entropy': 'MaxEnt',
-    'pgiql': 'PGIAVI',
+    'pgiql': 'PRISM',
     'hiavi': 'HIAVI',
     'iavi': 'IAVI'
 }

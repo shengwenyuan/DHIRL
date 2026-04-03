@@ -15,7 +15,7 @@ ENTRIES = [
     ("IAVI",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_iavi.csv")),
     # ("HIAVI",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_hiavi.csv")),
     ("SWIRL(S-2)",     None, -0.7287, 0.00367),
-    ("PGIAVI", os.path.join(ROOT_DIR, "src_autotest/outputs/20260315_192657/G03/E02/ll.csv")),
+    ("PRISM", os.path.join(ROOT_DIR, "src_autotest/outputs/20260315_192657/G03/E02/ll.csv")),
 ]
 # ─────────────────────────────────────────────────────────────────────────────
 

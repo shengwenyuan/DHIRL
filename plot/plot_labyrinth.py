@@ -233,7 +233,7 @@ def PlotMazeWall(m_wa,axes=None,figsize=4):
     return axes
 
 import matplotlib.colors as mcolors
-def PlotMazeFunction(f, state_name, m_wa, m_ru, m_xc, m_yc, numcol='cyan', figsize=4, selected_color=None, axes=None):
+def PlotMazeFunction(f, state_name, m_wa, m_ru, m_xc, m_yc, numcol='cyan', figsize=4, selected_color=None, axes=None, landmarks=None):
     '''
     Plot the maze defined in m with a function f overlaid in color
     f[]: array of something as a function of place in the maze, e.g. cell occupancy
@@ -278,6 +278,74 @@ def PlotMazeFunction(f, state_name, m_wa, m_ru, m_xc, m_yc, numcol='cyan', figsi
         ax.set_title(state_name, fontsize=20)
 
         # plt.axis('off')
+
+    if landmarks:
+        import matplotlib.patheffects as pe
+        for state_idx, marker_label in landmarks.items():
+            lx = m_xc[m_ru[state_idx][-1]]
+            ly = m_yc[m_ru[state_idx][-1]]
+            ax.plot(lx, ly, marker=marker_label, markersize=14, color='white',
+                    markeredgecolor='black', markeredgewidth=1.5, zorder=20)
+
+def plot_flow_arrows(ax, q, trans_probs, m_ru, m_xc, m_yc,
+                     arrow_color='black', arrow_alpha=0.6, arrow_scale=0.35,
+                     highlight_states=None, highlight_color='gold'):
+    """Draw greedy-policy flow arrows on the maze.
+
+    For each state, computes the greedy action from Q-values, resolves the
+    next state via the transition matrix, and draws an arrow from state
+    to next-state coordinates.
+
+    highlight_states: set/list of state indices whose arrows use highlight_color
+    """
+    num_states = q.shape[0]
+    hl = set(highlight_states) if highlight_states else set()
+    for s in range(num_states):
+        a_star = np.argmax(q[s])
+        ns = np.argmax(trans_probs[s, a_star, :])
+        if ns == s:
+            continue
+        sx, sy = float(m_xc[m_ru[s][-1]]), float(m_yc[m_ru[s][-1]])
+        nx, ny = float(m_xc[m_ru[ns][-1]]), float(m_yc[m_ru[ns][-1]])
+        dx, dy = nx - sx, ny - sy
+        length = np.sqrt(dx**2 + dy**2)
+        if length < 1e-6:
+            continue
+        ux, uy = dx / length, dy / length
+        if s in hl:
+            col, alp, lw, zord, ms = highlight_color, 0.95, 3.5, 18, 16
+            sc = arrow_scale * 1.4
+        else:
+            col, alp, lw, zord, ms = arrow_color, arrow_alpha, 1.8, 15, 10
+            sc = arrow_scale
+        ddx, ddy = ux * sc, uy * sc
+        ax.annotate('', xy=(sx + ddx * 0.5, sy + ddy * 0.5), xytext=(sx - ddx * 0.5, sy - ddy * 0.5),
+                    arrowprops=dict(arrowstyle='->,head_length=0.25,head_width=0.15',
+                                    color=col, lw=lw, mutation_scale=ms),
+                    alpha=alp, zorder=zord)
+
+def plot_path_line(ax, path_states, q, trans_probs, m_ru, m_xc, m_yc,
+                   color='#4dbd4d', linewidth=2.0, linestyle='--'):
+    """Draw dotted lines connecting highlighted states along greedy-policy edges.
+
+    For each state in path_states, if its greedy next-state is also in
+    path_states (or is a known goal), draw a dashed line between them.
+    """
+    ps = set(path_states)
+    drawn = set()
+    for s in path_states:
+        a_star = np.argmax(q[s])
+        ns = int(np.argmax(trans_probs[s, a_star, :]))
+        edge = (min(s, ns), max(s, ns))
+        if edge in drawn:
+            continue
+        drawn.add(edge)
+        sx = float(m_xc[m_ru[s][-1]])
+        sy = float(m_yc[m_ru[s][-1]])
+        nx = float(m_xc[m_ru[ns][-1]])
+        ny = float(m_yc[m_ru[ns][-1]])
+        ax.plot([sx, nx], [sy, ny], color=color, linewidth=linewidth,
+                linestyle=linestyle, alpha=0.9, zorder=17)
 
 def normalize(vals):
     """
