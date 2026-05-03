@@ -41,6 +41,7 @@ if __name__ == '__main__':
                     if num_trajs == 1024:
                         param_dir = os.path.join(output_dir, f'pgiql/{num_trajs}/fold_{kf_idx}')
                         os.makedirs(param_dir, exist_ok=True)
+                        np.save(os.path.join(param_dir, 'f_test.npy'), np.array(f['test'], dtype=object), allow_pickle=True)
                         for agent_idx, agent in enumerate(agents):
                             np.save(os.path.join(param_dir, f'r_{agent_idx}.npy'), agent.r)
                             np.save(os.path.join(param_dir, f'q_{agent_idx}.npy'), agent.q)
