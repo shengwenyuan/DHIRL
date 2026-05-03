@@ -121,9 +121,9 @@ def run():
 
     # Posterior curves
     ax_post.plot(steps, alpha[:, 0], color='#1d4ed8', lw=2.0,
-                 label="$P(k{=}'goal'\\mid\\Phi_t)$", zorder=3)
+                 label="$P(k{=}'goal'\\mid\\varphi_t)$", zorder=3)
     ax_post.plot(steps, alpha[:, 1], color='#dc2626', lw=2.0, ls='--',
-                 label="$P(k{=}'abandon'\\mid\\Phi_t)$", zorder=3)
+                 label="$P(k{=}'abandon'\\mid\\varphi_t)$", zorder=3)
     ax_post.set_ylim(-0.06, 1.06)
     ax_post.set_yticks([0, 0.5, 1.0])
     ax_post.set_yticklabels(['0', '0.5', '1'], fontsize=9)

@@ -1,4 +1,15 @@
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.rcParams.update({
+    'font.family':     'sans-serif',
+    'font.sans-serif': ['DejaVu Sans'],
+    'font.size':        9,
+    'axes.labelsize':  10,
+    'axes.titlesize':   9,
+    'xtick.labelsize': 10,
+    'ytick.labelsize': 10,
+    'legend.fontsize':  9,
+})
 import numpy as np
 import os
 import sys
@@ -26,7 +37,7 @@ CONFIGS = [
     # ('KL 1.36', 'src_autotest/outputs/20260315_051654/G01/E05/238/fold_0', 10),
     # ('KL 1.70', 'src_autotest/outputs/20260316_233519/G00/E01/238/fold_0', 10),
     # ('KL 2.20', 'src_autotest/outputs/20260316_233519/G00/E02/238/fold_0', 10),
-    ('L1 1.11 + KL 0.74',  'src_autotest/outputs/20260315_192657/G03/E01/238/fold_0', 10),
+    # ('L1 1.11 + KL 0.74',  'src_autotest/outputs/20260315_192657/G03/E01/238/fold_0', 10),
     # ('L1 1.11 + KL 1.48',  'src_autotest/outputs/20260317_234859/G00/E01/238/fold_0', 10),
     ('L1 2.22 + KL 1.48',  'src_autotest/outputs/20260315_192657/G03/E02/238/fold_0', 10),
     # ('L1 2.20 + KL 1.50',  'src_autotest/outputs/20260315_213426/G03/E01/238/fold_0', 10),
@@ -83,7 +94,7 @@ axes = axes[:, 0]  # flatten to 1-D
 # fig.suptitle('', fontsize=14)
 
 for i, (model, ax, model_zs, traj) in enumerate(zip(models, axes, zs_list, traj_list)):
-    ax.set_title(model, fontsize=12, fontweight='bold')
+    ax.set_title(model)
     ax.set_yticks([])
     
     j = 0

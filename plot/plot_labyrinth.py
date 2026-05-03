@@ -1,5 +1,6 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib.patches as mpatches
 
 # adapted from https://github.com/markusmeister/Rosenberg-2021-Repository
 
@@ -313,16 +314,19 @@ def plot_flow_arrows(ax, q, trans_probs, m_ru, m_xc, m_yc,
             continue
         ux, uy = dx / length, dy / length
         if s in hl:
-            col, alp, lw, zord, ms = highlight_color, 0.95, 3.5, 18, 16
-            sc = arrow_scale * 1.4
+            col, alp, zord = highlight_color, 0.95, 18
+            tip_len, half_w = arrow_scale * 1.1, arrow_scale * 0.75
         else:
-            col, alp, lw, zord, ms = arrow_color, arrow_alpha, 1.8, 15, 10
-            sc = arrow_scale
-        ddx, ddy = ux * sc, uy * sc
-        ax.annotate('', xy=(sx + ddx * 0.5, sy + ddy * 0.5), xytext=(sx - ddx * 0.5, sy - ddy * 0.5),
-                    arrowprops=dict(arrowstyle='->,head_length=0.25,head_width=0.15',
-                                    color=col, lw=lw, mutation_scale=ms),
-                    alpha=alp, zorder=zord)
+            col, alp, zord = arrow_color, arrow_alpha, 15
+            tip_len, half_w = arrow_scale * 0.6, arrow_scale * 0.4
+        # isoceles triangle centered on (sx, sy): shift vertices by -tip_len/3
+        coff = tip_len / 3
+        tip   = (sx + ux * (tip_len - coff),  sy + uy * (tip_len - coff))
+        base1 = (sx - ux * coff - uy * half_w, sy - uy * coff + ux * half_w)
+        base2 = (sx - ux * coff + uy * half_w, sy - uy * coff - ux * half_w)
+        tri = mpatches.Polygon([tip, base1, base2], closed=True,
+                               facecolor=col, edgecolor='none', alpha=alp, zorder=zord)
+        ax.add_patch(tri)
 
 def plot_path_line(ax, path_states, q, trans_probs, m_ru, m_xc, m_yc,
                    color='#4dbd4d', linewidth=2.0, linestyle='--'):

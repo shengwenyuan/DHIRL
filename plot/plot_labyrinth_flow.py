@@ -68,7 +68,7 @@ for i in range(num_latents):
     hl = highlight_map[title_list[i]]
     plot_flow_arrows(axes[i], qvalues[i], trans_probs, m_ru, m_xc, m_yc,
                      arrow_color='black', arrow_alpha=0.3, arrow_scale=0.35,
-                     highlight_states=hl, highlight_color='gold')
+                     highlight_states=hl, highlight_color="#25F147")
     if hl:
         plot_path_line(axes[i], hl, qvalues[i], trans_probs, m_ru, m_xc, m_yc)
 
