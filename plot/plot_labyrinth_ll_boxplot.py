@@ -15,7 +15,12 @@ ENTRIES = [
     ("IAVI",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_iavi.csv")),
     # ("HIAVI",  os.path.join(ROOT_DIR, "outputs/labyrinth_train/ll_hiavi.csv")),
     ("SWIRL(S-2)",     None, -0.7287, 0.00367),
-    ("PRISM", os.path.join(ROOT_DIR, "src_autotest/outputs/20260315_192657/G03/E02/ll.csv")),
+    ("PRISM", [
+        os.path.join(ROOT_DIR, "src_autotest/outputs/20260315_192657/G03/E02/ll.csv"),
+        os.path.join(ROOT_DIR, "src_autotest/outputs/20260503_035104/G01/E01/ll.csv"),
+        os.path.join(ROOT_DIR, "src_autotest/outputs/20260503_035104/G01/E02/ll.csv"),
+        # os.path.join(ROOT_DIR, "src_autotest/outputs/20260503_035104/G01/E03/ll.csv"),
+    ]),
 ]
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -40,6 +45,8 @@ def load_data(entry):
     """Return a 1-D array of values for one entry."""
     if len(entry) == 2:
         _, path = entry
+        if isinstance(path, list):
+            return np.concatenate([pd.read_csv(p)['test_ll'].values for p in path])
         df = pd.read_csv(path)
         return np.array(df['test_ll'].iloc[:5])
     else:
@@ -74,9 +81,13 @@ def plot_boxplot(entries):
         box.set_alpha(0.6)
         box.set_edgecolor('black')
 
-    ax.set_ylabel('Test LL', fontsize=18)
+    ax.set_ylabel('Test LL', fontsize=21)
     ax.grid(axis='y', alpha=0.75)
-    ax.tick_params(axis="both", labelsize=13)
+    ax.tick_params(axis="both", labelsize=15)
+
+    for tick, label in zip(ax.get_xticklabels(), labels):
+        if label == "PRISM":
+            tick.set_fontweight('bold')
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     fig.savefig(OUTPUT_FILE, bbox_inches='tight', dpi=200)

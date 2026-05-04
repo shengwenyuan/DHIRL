@@ -2,6 +2,7 @@ import os
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -18,6 +19,22 @@ GROUP_BY  = "model_type"
 LL_FILE   = "ll.csv"
 OUT       = os.path.join(OUT_DIR, f"hiddenK_linechart.pdf")
 COLORS    = ["#e4c40e", "#196eab", "#4dbd4d"]
+
+# (model_type, num_latents) → list of csv paths whose test_ll rows are combined
+PATCH_PATHS = {
+    ("IntentionRNN", 3): [
+        "src_autotest/outputs/20260315_192657/G03/E02/ll.csv",
+        "src_autotest/outputs/20260503_035104/G01/E01/ll.csv",
+        "src_autotest/outputs/20260503_035104/G01/E02/ll.csv",
+        "src_autotest/outputs/20260503_035104/G01/E03/ll.csv",
+    ],
+    ("IntentionLSTM", 3): [
+        "src_autotest/outputs/20260401_022447/G01/E09/ll.csv",
+        "src_autotest/outputs/20260504_004701/G02/E01/ll.csv",
+        "src_autotest/outputs/20260504_004701/G02/E02/ll.csv",
+        "src_autotest/outputs/20260504_004701/G02/E03/ll.csv",
+    ],
+}
 
 
 def load_config(path):
@@ -45,6 +62,7 @@ def read_test_ll(csv_path):
 cfg = load_config(CONFIG)
 group_id, experiments = find_group(cfg, GROUP)
 
+# raw stores (x_val, lls_array) so we can scatter individual points later
 raw = defaultdict(list)
 for exp in experiments:
     exp_id  = exp["id"]
@@ -57,30 +75,40 @@ for exp in experiments:
         print(f"[warn] {exp_id}: not found at {csv_path}")
         continue
     lls = read_test_ll(csv_path)
-    raw[grp_val].append((x_val, lls.mean(), lls.std()))
+    raw[grp_val].append((x_val, lls))
 
 for key in raw:
     raw[key].sort(key=lambda t: t[0])
+
+for (model_type, x_val), paths in PATCH_PATHS.items():
+    lls = np.concatenate([pd.read_csv(os.path.join(ROOT, p))["test_ll"].values for p in paths])
+    pts = raw.get(model_type, [])
+    for i, (x, arr) in enumerate(pts):
+        if x == x_val:
+            pts[i] = (x, lls)
+            break
 
 fig, ax = plt.subplots(figsize=(7, 5), dpi=150)
 for i, (grp_val, points) in enumerate(sorted(raw.items())):
     c     = COLORS[i % len(COLORS)]
     xs    = [p[0] for p in points]
-    means = [p[1] for p in points]
-    stds  = [p[2] for p in points]
-    ax.plot(xs, means, marker="o", color=c, linewidth=2, label=str(grp_val)[9:])
+    means = [p[1].mean() for p in points]
+    stds  = [p[1].std() for p in points]
+    ax.plot(xs, means, marker="o", color=c, linewidth=2, label=str(grp_val)[9:], zorder=3)
     ax.fill_between(xs, [m - s for m, s in zip(means, stds)],
                         [m + s for m, s in zip(means, stds)], color=c, alpha=0.12)
+    for x, lls in zip(xs, [p[1] for p in points]):
+        ax.scatter([x] * len(lls), lls, color=c, alpha=0.35, s=12, zorder=2, linewidths=0)
 
-ax.set_xlabel(X_LABEL, fontsize=18)
-ax.set_ylabel("Test LL", fontsize=18)
-ax.tick_params(axis="both", labelsize=13)
-ax.legend(fontsize=14, framealpha=0.9)
+ax.set_xlabel(X_LABEL, fontsize=21)
+ax.set_ylabel("Test LL", fontsize=21)
+ax.tick_params(axis="both", labelsize=16)
+ax.legend(fontsize=16, framealpha=0.9)
 ax.grid(True, linestyle="--", linewidth=0.6, alpha=0.4)
 ax.spines[["top", "right"]].set_visible(False)
 
-if all(isinstance(x, int) for grp in raw.values() for x, _, _ in grp):
-    ax.set_xticks(sorted({x for grp in raw.values() for x, _, _ in grp}))
+if all(isinstance(x, int) for grp in raw.values() for x, _ in grp):
+    ax.set_xticks(sorted({x for grp in raw.values() for x, _ in grp}))
 
 plt.tight_layout()
 os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)

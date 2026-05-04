@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 matplotlib.rcParams.update({
     'font.family':     'sans-serif',
     'font.sans-serif': ['DejaVu Sans'],
-    'font.size':        9,
-    'axes.labelsize':  10,
-    'axes.titlesize':   9,
-    'xtick.labelsize': 10,
-    'ytick.labelsize': 10,
-    'legend.fontsize':  9,
+    'font.size':        14,
+    'axes.labelsize':  15,
+    'axes.titlesize':   14,
+    'xtick.labelsize': 13,
+    'ytick.labelsize': 13,
+    'legend.fontsize':  14,
 })
 import numpy as np
 import os

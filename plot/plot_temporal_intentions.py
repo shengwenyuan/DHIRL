@@ -97,8 +97,8 @@ def run():
     # -----------------------------------------------------------------------
     # Plot
     # -----------------------------------------------------------------------
-    fig = plt.figure(figsize=(3.5, 3.2), dpi=200, constrained_layout=True)
-    gs = gridspec.GridSpec(2, 1, height_ratios=[3, 1.5], hspace=0.06, figure=fig)
+    fig = plt.figure(figsize=(3.5, 2.9), dpi=200, constrained_layout=True)
+    gs = gridspec.GridSpec(2, 1, height_ratios=[2.2, 1.5], hspace=0.06, figure=fig)
     ax_post = fig.add_subplot(gs[0])
     ax_frust = fig.add_subplot(gs[1], sharex=ax_post)
 
@@ -126,8 +126,8 @@ def run():
                  label="$P(k{=}'abandon'\\mid\\varphi_t)$", zorder=3)
     ax_post.set_ylim(-0.06, 1.06)
     ax_post.set_yticks([0, 0.5, 1.0])
-    ax_post.set_yticklabels(['0', '0.5', '1'], fontsize=9)
-    ax_post.set_ylabel('intention\nposterior', fontsize=9)
+    ax_post.set_yticklabels(['0', '0.5', '1'], fontsize=11)
+    ax_post.set_ylabel('intention\nposterior', fontsize=11)
     ax_post.legend(fontsize=7.5, loc='center right', framealpha=0.85,
                    handlelength=1.6)
     ax_post.tick_params(labelbottom=False, bottom=False)
@@ -141,12 +141,12 @@ def run():
     max_frust = int(frustration.max())
     ax_frust.set_ylim(-0.3, max_frust + 0.6)
     ax_frust.set_yticks(range(max_frust + 1))
-    ax_frust.set_yticklabels([str(i) for i in range(max_frust + 1)], fontsize=9)
-    ax_frust.set_ylabel('frustration\ncounter', fontsize=9)
-    ax_frust.set_xlabel('time step', fontsize=9)
+    ax_frust.set_yticklabels([str(i) for i in range(max_frust + 1)], fontsize=11)
+    ax_frust.set_ylabel('frustration\ncounter', fontsize=11)
+    ax_frust.set_xlabel('time step', fontsize=11)
     ax_frust.set_xlim(-0.5, T - 0.5)
     ax_frust.set_xticks(range(0, T, 2))
-    ax_frust.tick_params(labelsize=9)
+    ax_frust.tick_params(labelsize=11)
     ax_frust.spines[['top', 'right']].set_visible(False)
 
     os.makedirs(os.path.dirname(OUT_FIG), exist_ok=True)

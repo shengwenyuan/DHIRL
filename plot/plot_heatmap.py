@@ -159,8 +159,8 @@ def run():
         ax.set_xticks([])
         ax.set_yticks([])
         if col_idx == 0:
-            ax.set_ylabel('goal', fontsize=10)
-        ax.set_title(column_labels[col_idx], fontsize=9)
+            ax.set_ylabel('goal', fontsize=13)
+        ax.set_title(column_labels[col_idx], fontsize=12)
         cbar0 = fig.colorbar(im0, ax=ax, shrink=0.6, aspect=20, pad=0.02)
         cbar0.set_ticks([vmin, vmax])
         cbar0.set_ticklabels([f'{vmin:.3f}', f'{vmax:.3f}'])
@@ -177,7 +177,7 @@ def run():
         ax.set_xticks([])
         ax.set_yticks([])
         if col_idx == 0:
-            ax.set_ylabel('abandon', fontsize=10)
+            ax.set_ylabel('abandon', fontsize=13)
             print(f'abandon col={column_labels[col_idx]:12s} EVD_MAE=0.000000±0.000000  EVD(s0)=0.000000±0.000000')
         cbar1 = fig.colorbar(im1, ax=ax, shrink=0.6, aspect=20, pad=0.02)
         cbar1.set_ticks([vmin, vmax])

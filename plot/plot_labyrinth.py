@@ -276,7 +276,7 @@ def PlotMazeFunction(f, state_name, m_wa, m_ru, m_xc, m_yc, numcol='cyan', figsi
             ax.text(x-.4, y+.15, '{:d}'.format(j),fontsize=10.5, color=numcol)  # number the ends of a run
                 
         # plt.colorbar(sm, ax=ax, ticks=[0, 1], fraction=0.046, pad=0.04)
-        ax.set_title(state_name, fontsize=20)
+        ax.set_title(state_name, fontsize=30)
 
         # plt.axis('off')
 

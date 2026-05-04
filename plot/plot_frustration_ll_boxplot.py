@@ -39,10 +39,10 @@ def plot_boxplot(files, labels):
         box.set_alpha(0.7)
         box.set_edgecolor('black')
 
-    plt.ylabel('Test LL', fontsize=18)
+    plt.ylabel('Test LL', fontsize=21)
     # plt.title('Gridworld: Frustration', fontsize=14)
     plt.grid(axis='y', alpha=0.75)
-    plt.gca().tick_params(axis='both', labelsize=13)
+    plt.gca().tick_params(axis='both', labelsize=16)
     # Bold the first column (pgiavi)
     for i, tick in enumerate(plt.gca().get_xticklabels()):
         tick.set_fontweight('bold' if i == 0 else 'normal')
