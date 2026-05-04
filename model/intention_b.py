@@ -27,7 +27,10 @@ class IntentionRNN(nn.Module):
     def forward(self, bs, ba, mask=None, total_length=None):
         state_embeds = self.state_embed(bs)   # (B, T, hidden_dim)
         action_embeds = self.action_embed(ba) # (B, T, hidden_dim)
-        x = state_embeds + action_embeds       # (B, T, hidden_dim)
+        # Shift actions right: at time t condition on a_{t-1}, not a_t (causal prior, no leakage)
+        action_embeds_shifted = torch.zeros_like(action_embeds)
+        action_embeds_shifted[:, 1:, :] = action_embeds[:, :-1, :]
+        x = state_embeds + action_embeds_shifted  # (B, T, hidden_dim)
         if mask is not None:
             lengths = mask.sum(dim=1)
             x_packed = pack_padded_sequence(x, lengths.cpu(), batch_first=True, enforce_sorted=False)
@@ -62,7 +65,10 @@ class IntentionLSTM(nn.Module):
     def forward(self, bs, ba, mask=None, total_length=None):
         state_embeds = self.state_embed(bs)   # (B, T, hidden_dim)
         action_embeds = self.action_embed(ba) # (B, T, hidden_dim)
-        x = state_embeds + action_embeds       # (B, T, hidden_dim)
+        # Shift actions right: at time t condition on a_{t-1}, not a_t (causal prior, no leakage)
+        action_embeds_shifted = torch.zeros_like(action_embeds)
+        action_embeds_shifted[:, 1:, :] = action_embeds[:, :-1, :]
+        x = state_embeds + action_embeds_shifted  # (B, T, hidden_dim)
         if mask is not None:
             lengths = mask.sum(dim=1)
             x_packed = pack_padded_sequence(x, lengths.cpu(), batch_first=True, enforce_sorted=False)
@@ -96,7 +102,11 @@ class IntentionTransformer(nn.Module):
         # bs: (B, T), ba: (B, T)
         state_embeds = self.state_embed(bs)   # (B, T, d_model)
         action_embeds = self.action_embed(ba) # (B, T, d_model)
-        x = state_embeds + action_embeds       # (B, T, d_model)
+        # Shift actions right: at time t condition on a_{t-1}, not a_t (causal prior, no leakage)
+        # NOTE: also requires a causal attention mask if this transformer is ever used for inference
+        action_embeds_shifted = torch.zeros_like(action_embeds)
+        action_embeds_shifted[:, 1:, :] = action_embeds[:, :-1, :]
+        x = state_embeds + action_embeds_shifted  # (B, T, d_model)
         x = self.pos_encoding(x)
         if mask is not None:
             padding_mask = ~mask
