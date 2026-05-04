@@ -58,7 +58,8 @@ class IAVI:
 
 
 class HIAVI:
-    def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount, kl_weight=0.0):
+    def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount, kl_weight=0.0,
+                 l1_weight=0.0, max_iter=200, gamma_tol=1e-4):
         self.num_latents = num_latents
         self.num_states = num_states
         self.num_actions = num_actions
@@ -67,22 +68,19 @@ class HIAVI:
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
         self.kl_weight = kl_weight
+        self.l1_weight = l1_weight
+        self.max_iter = max_iter
+        self.gamma_tol = gamma_tol
 
     def _get_mc_probs(self, pis, trajs, logp_init, logp_tr):
         num_latents = logp_init.shape[0]
-        # KL(pi_l(·|s) || uniform) = log(K) - H(pi_l(·|s)) for each latent and state
-        kl_per_state = []
-        for l_idx in range(num_latents):
-            pi_l = pis[l_idx]  # (num_states, num_actions)
-            kl_l = np.sum(pi_l * np.log(pi_l + 1e-10), axis=1) + np.log(self.num_actions)  # (num_states,)
-            kl_per_state.append(kl_l)
         logp_gammas = []
         logp_xis = []
         lls = []
         for traj in trajs:
             logp_obs = []
             for s, a, ns in traj:
-                logp_obs.append([np.log(pis[l_idx][s, a]) - self.kl_weight * kl_per_state[l_idx][s]
+                logp_obs.append([np.log(pis[l_idx][s, a])
                                   for l_idx in range(num_latents)])
             logp_obs = np.array(logp_obs)
 
@@ -137,22 +135,23 @@ class HIAVI:
             pis.append(pi)
         logp_gammas, *_ = self._get_mc_probs(pis, self.train_trajs, logp_init, logp_tr)
 
+        cnt = 0
+        prev_gammas = np.vstack([np.exp(g) for g in logp_gammas])
         while True:
-            z_hat = np.argmax(np.vstack(logp_gammas), axis=-1)
             pis = []
             agents = []
             for latent_idx in range(self.num_latents):
-                inputs = []
-                for session_idx, session_trajs in enumerate(self.train_trajs):
-                    logp_gamma = logp_gammas[session_idx]
-                    for traj_idx, traj in enumerate(session_trajs):
-                        if np.random.uniform() > np.exp(logp_gamma[traj_idx, latent_idx]):
-                            continue
-                        inputs.append(traj)
-
                 expert_pi = np.zeros((self.num_states, self.num_actions))
-                for s, a, ns in inputs:
-                    expert_pi[s, a] += 1
+                for session_idx, session_trajs in enumerate(self.train_trajs):
+                    gamma = np.exp(logp_gammas[session_idx])  # (T, K)
+                    for t, (s, a, ns) in enumerate(session_trajs):
+                        w = gamma[t, latent_idx]
+                        if t > 0 and (self.kl_weight > 0.0 or self.l1_weight > 0.0):
+                            kl_t = gamma[t-1, latent_idx] * np.log(
+                                (gamma[t-1, latent_idx] + 1e-10) / (gamma[t, latent_idx] + 1e-10))
+                            l1_t = abs(gamma[t, latent_idx] - gamma[t-1, latent_idx])
+                            w = max(0.0, w - self.kl_weight * kl_t - self.l1_weight * l1_t)
+                        expert_pi[s, a] += w
                 expert_pi[expert_pi.sum(axis=1) == 0] = 1e-6
                 expert_pi /= expert_pi.sum(axis=1).reshape(-1, 1)
                 agent = IAVI(num_states=self.num_states, num_actions=self.num_actions,
@@ -171,7 +170,11 @@ class HIAVI:
                                  keepdims=True).T
             logp_tr -= logsumexp(logp_tr, axis=-1, keepdims=True)
 
-            if (z_hat == np.argmax(np.vstack(logp_gammas), axis=-1)).all():
+            cnt += 1
+            curr_gammas = np.vstack([np.exp(g) for g in logp_gammas])
+            gamma_diff = np.max(np.abs(curr_gammas - prev_gammas))
+            prev_gammas = curr_gammas
+            if gamma_diff < self.gamma_tol or cnt >= self.max_iter:
                 break
 
         # Evaluation
@@ -217,16 +220,16 @@ class PGIAVI:
         self.intention_net = IntentionRNN(num_states=self.num_states,
                                        num_actions=self.num_actions,
                                        num_latents=self.num_latents,
-                                       hidden_dim=64, 
-                                       rnn_hidden_dim=64, 
-                                       num_layers=1,
+                                       hidden_dim=128, 
+                                       rnn_hidden_dim=128, 
+                                       num_layers=2,
                                        dropout=0.3)
         self.target_intention_net = IntentionRNN(num_states=self.num_states,
                                        num_actions=self.num_actions,
                                        num_latents=self.num_latents,
-                                       hidden_dim=64, 
-                                       rnn_hidden_dim=64, 
-                                       num_layers=1,
+                                       hidden_dim=128, 
+                                       rnn_hidden_dim=128, 
+                                       num_layers=2,
                                        dropout=0.3)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
@@ -256,7 +259,7 @@ class PGIAVI:
         actions = torch.tensor([a for s, a, ns in traj], dtype=torch.long)
         return states, actions
     
-    def train_batched(self, batch_states, batch_actions, batch_target_gamma, batch_mask, total_length, num_epochs=1):
+    def train_batched(self, batch_states, batch_actions, batch_target_gamma, batch_mask, total_length, num_epochs=3):
         """
         :param agents: List of IAVI agents
         :param num_epochs: Number of passes through the data
@@ -281,14 +284,16 @@ class PGIAVI:
         return total_loss / num_epochs
     
     def fit(self):
-        uniform_policy = np.full((self.num_states, self.num_actions), 1.0 / self.num_actions)
+        # Initialize agents with distinct random policies for symmetry breaking
         agents = []
         for _ in range(self.num_latents):
+            init_policy = np.abs(np.random.randn(self.num_states, self.num_actions))
+            init_policy /= init_policy.sum(axis=1, keepdims=True)
             agent = IAVI(
                 num_states=self.num_states,
                 num_actions=self.num_actions,
                 P=self.P,
-                expert_policy=uniform_policy,
+                expert_policy=init_policy,
                 discount=self.discount
             )
             agent.train()
@@ -351,21 +356,15 @@ class PGIAVI:
                 expert_pi[mask] = 1e-6
                 expert_pi /= expert_pi.sum(dim=1, keepdim=True)
 
-                agent = IAVI(
-                    num_states=self.num_states,
-                    num_actions=self.num_actions,
-                    P=self.P,
-                    expert_policy=expert_pi.numpy(),
-                    discount=self.discount
-                )
-                agent.train()
-                agents[latent_idx] = agent
+                # Warm-start: reuse previous agent's r, q so accumulated structure is preserved
+                agents[latent_idx].expert_policy = expert_pi.numpy()
+                agents[latent_idx].train()
             q_time = time.time() - q_start_time
             total_q_time += q_time
 
             # * * * Update intention network * * *
             other_start_time = time.time()
-            total_loss = self.train_batched(batch_states, batch_actions, batch_target_gamma, batch_mask, max_len, num_epochs=1)
+            total_loss = self.train_batched(batch_states, batch_actions, batch_target_gamma, batch_mask, max_len, num_epochs=3)
             other_time = time.time() - other_start_time
             total_other_time += other_time
 
@@ -377,7 +376,7 @@ class PGIAVI:
                 total_q_time = 0
                 total_other_time = 0
 
-            if abs(total_loss) < 1e-3 or logger_cnt >= 100:
+            if abs(total_loss) < 1e-3 or logger_cnt >= 200:
                 final_iteration_time = time.time() - iteration_start_time
                 print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break

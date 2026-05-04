@@ -248,15 +248,16 @@ class PGIAVI_B:
         return np.mean(loss_list)
     
     def fit(self):
-        # * * * Initialize agents with uniform policy * * *
-        uniform_policy = np.full((self.num_states, self.num_actions), 1.0 / self.num_actions)
+        # * * * Initialize agents with distinct random policies for symmetry breaking * * *
         agents = []
         for _ in range(self.num_latents):
+            init_policy = np.abs(np.random.randn(self.num_states, self.num_actions))
+            init_policy /= init_policy.sum(axis=1, keepdims=True)
             agent = IAVI_B(
                 num_states=self.num_states,
                 num_actions=self.num_actions,
                 P=self.P,
-                expert_policy=uniform_policy,
+                expert_policy=init_policy,
                 discount=self.discount,
                 device=self.device
             )
@@ -304,16 +305,10 @@ class PGIAVI_B:
                 expert_pi[mask] = 1e-6
                 expert_pi /= expert_pi.sum(dim=1, keepdim=True)
 
-                agent = IAVI_B(
-                    num_states=self.num_states,
-                    num_actions=self.num_actions,
-                    P=self.P,
-                    expert_policy=expert_pi.numpy(),
-                    discount=self.discount,
-                    device=self.device
-                )
-                agent.train()
-                agents[latent_idx] = agent
+                # Warm-start: reuse previous agent's r, q so accumulated structure is preserved
+                agents[latent_idx].expert_policy = torch.as_tensor(
+                    expert_pi.numpy(), dtype=torch.float64, device=self.device)
+                agents[latent_idx].train()
             q_time = time.time() - q_start_time
             logstep_q_time += q_time
 

@@ -14,7 +14,7 @@ defaults:
   model_type: IntentionRNN
   hidden_dim: 128
   rnn_hidden_dim: 128
-  num_layers: 1
+  num_layers: 2
   dropout: 0.3
   nhead: 4
   lr: 0.001
@@ -25,7 +25,7 @@ defaults:
 
   num_epochs: 1
   loss_threshold: 0.005
-  max_iterations: 180
+  max_iterations: 250
 
 
 # Each experiment only needs an id and the params that differ from defaults.

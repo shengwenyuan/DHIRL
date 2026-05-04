@@ -16,6 +16,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_latents', type=int, default=3)
     parser.add_argument('--rand_seed', type=int, default=42)
     parser.add_argument('--kl_weight', type=float, default=0.0)
+    parser.add_argument('--l1_weight', type=float, default=0.0)
     args = parser.parse_args()
 
     num_folds = 5
@@ -46,7 +47,7 @@ if __name__ == '__main__':
             for repeat in range(num_repeats):
                 model = HIAVI(num_latents=num_latents, num_states=num_states, num_actions=num_actions,
                               train_trajs=train_trajs, test_trajs=test_trajs, P=P, discount=0.9,
-                              kl_weight=args.kl_weight)
+                              kl_weight=args.kl_weight, l1_weight=args.l1_weight)
                 ll, logp_init, logp_tr, agents = model.fit()
                 if ll['test'] > best_test_ll:
                     best_test_ll = ll['test']
