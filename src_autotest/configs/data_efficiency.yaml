@@ -1,0 +1,78 @@
+# ──────────────────────────────────────────────────────────────
+# Data efficiency sweep config for labyrinth (DHIRL)
+#
+# Usage (from DHIRL root):
+#   python -m src_autotest.run_sweep src_autotest/configs/data_efficiency.yaml
+#   python -m src_autotest.run_sweep src_autotest/configs/data_efficiency.yaml --groups RNN_efficiency
+#
+# num_traj_steps=5 sweeps: [47, 95, 142, 190, 238] trajectories
+# ──────────────────────────────────────────────────────────────
+
+defaults:
+  ll_filename: ll.csv
+  output_dir: src_autotest/outputs_sweeps
+  num_repeats: 2
+  num_latents: 3
+  rand_seed: 42
+  num_traj_steps: 5
+
+  model_type: IntentionRNN
+  hidden_dim: 128
+  rnn_hidden_dim: 128
+  num_layers: 1
+  dropout: 0.3
+  nhead: 4
+  lr: 0.001
+
+  reg_type: kl+l1
+  reg_weight: 2.22
+  kl_weight: 1.48
+
+  num_epochs: 1
+  loss_threshold: 0.05
+  max_iterations: 180
+
+
+groups:
+
+  RNN_efficiency:
+    id: G01
+    description: "Data efficiency curve — IntentionRNN"
+    experiments:
+      - id: E01
+        rand_seed: 42
+      - id: E02
+        rand_seed: 1223
+      - id: E03
+        rand_seed: 999
+
+  LSTM_efficiency:
+    id: G02
+    description: "Data efficiency curve — IntentionLSTM"
+    experiments:
+      - id: E01
+        model_type: IntentionLSTM
+        rand_seed: 42
+      - id: E02
+        model_type: IntentionLSTM
+        rand_seed: 1223
+      - id: E03
+        model_type: IntentionLSTM
+        rand_seed: 999
+
+  Transformer_efficiency:
+    id: G03
+    description: "Data efficiency curve — IntentionTransformer"
+    experiments:
+      - id: E01
+        model_type: IntentionTransformer
+        num_epochs: 8
+        rand_seed: 42
+      - id: E02
+        model_type: IntentionTransformer
+        num_epochs: 8
+        rand_seed: 1223
+      - id: E03
+        model_type: IntentionTransformer
+        num_epochs: 8
+        rand_seed: 999
