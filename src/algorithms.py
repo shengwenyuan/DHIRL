@@ -190,7 +190,8 @@ class HIAVI:
 
 
 class PGIAVI:
-    def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount):
+    def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount,
+                 gate_mode='retrospective', loss_threshold=1e-3, max_iterations=100):
         self.num_latents = num_latents  # K
         self.num_states = num_states
         self.num_actions = num_actions
@@ -199,6 +200,9 @@ class PGIAVI:
         self.discount = discount
         self.train_trajs = train_trajs
         self.test_trajs = test_trajs
+        self.gate_mode = gate_mode
+        self.loss_threshold = loss_threshold
+        self.max_iterations = max_iterations
 
         # self.intention_net = IntentionTransformer(num_states=self.num_states, 
         #                                num_actions=self.num_actions,
@@ -220,14 +224,16 @@ class PGIAVI:
                                        hidden_dim=64, 
                                        rnn_hidden_dim=64, 
                                        num_layers=1,
-                                       dropout=0.3)
+                                       dropout=0.3,
+                                       gate_mode=gate_mode)
         self.target_intention_net = IntentionRNN(num_states=self.num_states,
                                        num_actions=self.num_actions,
                                        num_latents=self.num_latents,
                                        hidden_dim=64, 
                                        rnn_hidden_dim=64, 
                                        num_layers=1,
-                                       dropout=0.3)
+                                       dropout=0.3,
+                                       gate_mode=gate_mode)
         self.target_intention_net.load_state_dict(self.intention_net.state_dict())
         self.target_intention_net.eval()
         self.optimizer = torch.optim.Adam(self.intention_net.parameters(), lr=1e-3)
@@ -245,9 +251,13 @@ class PGIAVI:
 
         for latent_idx, agent in enumerate(agents):
             q = torch.as_tensor(agent.q, dtype=torch.float32)
-            pi = torch.softmax(q, dim=-1)
+            if self.gate_mode == 'retrospective':
+                pi = torch.softmax(q, dim=-1)
+                log_policy = torch.log(pi + 1e-8)
+            else:
+                log_policy = torch.log_softmax(q, dim=-1)
             for t, (s, a, ns) in enumerate(traj):
-                log_pi[latent_idx, t] = torch.log(pi[s, a] + 1e-8)
+                log_pi[latent_idx, t] = log_policy[s, a]
 
         return log_pi
 
@@ -377,30 +387,53 @@ class PGIAVI:
                 total_q_time = 0
                 total_other_time = 0
 
-            if abs(total_loss) < 1e-3 or logger_cnt >= 100:
+            if abs(total_loss) < self.loss_threshold or logger_cnt >= self.max_iterations:
                 final_iteration_time = time.time() - iteration_start_time
-                print(f'Iteration {logger_cnt}, Converged with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
+                stop_reason = (
+                    'loss_threshold'
+                    if abs(total_loss) < self.loss_threshold
+                    else 'max_iterations'
+                )
+                print(f'Iteration {logger_cnt}, Stopped ({stop_reason}) with Loss: {total_loss:.4f}, Total time: {final_iteration_time:.2f}s')
                 break
 
         f = {}
         ll = {}
+        ll['score_type'] = (
+            'retrospective_compatibility_score'
+            if self.gate_mode == 'retrospective'
+            else 'predictive_action_log_likelihood'
+        )
+        ll['iterations'] = logger_cnt
+        ll['stop_reason'] = stop_reason
+        ll['final_loss'] = float(total_loss)
         for ds in ['train', 'test']:
             trajs = eval(f'self.{ds}_trajs')
             fs = []
+            responsibilities = []
+            step_log_scores = []
             lls = []
             for traj_idx, traj in enumerate(trajs):
                 states, actions = self.encode_session_traj(traj)
                 log_pi = self.get_log_pi(traj, agents)
                 with torch.no_grad():
-                    _, log_f, log_p_joint = self.intention_mapping(states, actions, log_pi)
+                    log_p_gamma, log_f, log_p_joint = self.intention_mapping(states, actions, log_pi)
+                    log_p_gamma = log_p_gamma.numpy()
                     log_f = log_f.numpy()
                     log_p_joint = log_p_joint.numpy()
                 fs.append(np.exp(log_f))
-                # lls.append(logsumexp(log_p_joint, axis=-1).sum()) # whole trajectory LL
-                lls.append(np.mean(logsumexp(log_p_joint, axis=-1))) # per-step LL
-            lls = np.mean(np.hstack(lls))
-            ll[ds] = np.mean(lls)
+                responsibilities.append(np.exp(log_p_gamma))
+                step_score = logsumexp(log_p_joint, axis=-1)
+                step_log_scores.append(step_score)
+                lls.append(np.mean(step_score))
+            ll[ds] = float(np.mean(lls))
+            ll[f'{ds}_traj_mean'] = ll[ds]
+            ll[f'{ds}_step_mean'] = float(np.mean(np.concatenate(step_log_scores)))
+            ll[f'{ds}_steps'] = int(sum(len(scores) for scores in step_log_scores))
             f[ds] = fs
+            f[f'gate_{ds}'] = fs
+            f[f'responsibility_{ds}'] = responsibilities
+            f[f'step_log_score_{ds}'] = step_log_scores
 
         return ll, f, agents
 

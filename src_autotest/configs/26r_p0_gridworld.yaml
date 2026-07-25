@@ -1,0 +1,56 @@
+# P0 pure information-set ablation on the canonical frustration dataset.
+defaults:
+  task: gridworld
+  ll_filename: metrics.csv
+  output_dir: src_autotest/outputs/26r
+  data_dir: /home/swy/U-Frei/IRL/DHIRL/data/gridworld
+  num_repeats: 1
+  num_latents: 2
+  loss_threshold: 0.001
+  max_iterations: 100
+
+groups:
+  grid_retrospective_s42:
+    id: grid_retrospective_s42
+    experiments:
+      - id: E00
+        gate_mode: retrospective
+        rand_seed: 42
+
+  grid_causal_s0:
+    id: grid_causal_s0
+    experiments:
+      - id: E00
+        gate_mode: causal
+        rand_seed: 0
+  grid_causal_s42:
+    id: grid_causal_s42
+    experiments:
+      - id: E00
+        gate_mode: causal
+        rand_seed: 42
+  grid_causal_s2026:
+    id: grid_causal_s2026
+    experiments:
+      - id: E00
+        gate_mode: causal
+        rand_seed: 2026
+
+  grid_state_history_s0:
+    id: grid_state_history_s0
+    experiments:
+      - id: E00
+        gate_mode: state_only
+        rand_seed: 0
+  grid_state_history_s42:
+    id: grid_state_history_s42
+    experiments:
+      - id: E00
+        gate_mode: state_only
+        rand_seed: 42
+  grid_state_history_s2026:
+    id: grid_state_history_s2026
+    experiments:
+      - id: E00
+        gate_mode: state_only
+        rand_seed: 2026

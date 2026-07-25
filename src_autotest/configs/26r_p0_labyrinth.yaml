@@ -1,0 +1,69 @@
+# Canonical paper-era Labyrinth RNN, changing only the gate information set.
+defaults:
+  task: labyrinth
+  ll_filename: metrics.csv
+  output_dir: src_autotest/outputs/26r
+  data_dir: /home/swy/U-Frei/IRL/DHIRL/data/labyrinth/data
+  num_repeats: 1
+  paired_fold_seeds: 1
+  p0_artifacts: 1
+  num_latents: 3
+  model_type: IntentionRNN
+  hidden_dim: 128
+  rnn_hidden_dim: 128
+  num_layers: 1
+  dropout: 0.3
+  nhead: 4
+  lr: 0.001
+  reg_type: kl+l1
+  reg_weight: 2.22
+  kl_weight: 1.48
+  num_epochs: 3
+  loss_threshold: 0.05
+  max_iterations: 180
+
+groups:
+  labyrinth_retrospective_s42:
+    id: labyrinth_retrospective_s42
+    experiments:
+      - id: E00
+        gate_mode: retrospective
+        rand_seed: 42
+
+  labyrinth_causal_s0:
+    id: labyrinth_causal_s0
+    experiments:
+      - id: E00
+        gate_mode: causal
+        rand_seed: 0
+  labyrinth_causal_s42:
+    id: labyrinth_causal_s42
+    experiments:
+      - id: E00
+        gate_mode: causal
+        rand_seed: 42
+  labyrinth_causal_s2026:
+    id: labyrinth_causal_s2026
+    experiments:
+      - id: E00
+        gate_mode: causal
+        rand_seed: 2026
+
+  labyrinth_state_history_s0:
+    id: labyrinth_state_history_s0
+    experiments:
+      - id: E00
+        gate_mode: state_only
+        rand_seed: 0
+  labyrinth_state_history_s42:
+    id: labyrinth_state_history_s42
+    experiments:
+      - id: E00
+        gate_mode: state_only
+        rand_seed: 42
+  labyrinth_state_history_s2026:
+    id: labyrinth_state_history_s2026
+    experiments:
+      - id: E00
+        gate_mode: state_only
+        rand_seed: 2026

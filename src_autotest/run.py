@@ -14,15 +14,21 @@ import yaml
 import subprocess
 import datetime
 import argparse
+import json
+import shutil
 
-TRAIN_MODULE = 'src_autotest.train_labyrinth_b'
+TRAIN_MODULES = {
+    'labyrinth': 'src_autotest.train_labyrinth_b',
+    'gridworld': 'src_autotest.train_gridworld',
+}
 
 PARAM_KEYS = [
-    'll_filename', 'output_dir', 'group_id',
+    'll_filename', 'output_dir', 'group_id', 'data_dir',
     'num_repeats', 'num_latents', 'rand_seed',
     'model_type', 'hidden_dim', 'rnn_hidden_dim', 'num_layers', 'dropout', 'nhead', 'lr',
     'reg_type', 'reg_weight', 'kl_weight',
-    'num_epochs', 'loss_threshold', 'max_iterations',
+    'num_epochs', 'loss_threshold', 'max_iterations', 'gate_mode',
+    'fold_idx', 'max_trajs', 'paired_fold_seeds', 'p0_artifacts',
 ]
 
 
@@ -32,7 +38,10 @@ def load_config(path):
 
 
 def build_command(params):
-    cmd = [sys.executable, '-m', TRAIN_MODULE]
+    task = params.get('task', 'labyrinth')
+    if task not in TRAIN_MODULES:
+        raise ValueError(f'Unknown task={task!r}; expected one of {tuple(TRAIN_MODULES)}')
+    cmd = [sys.executable, '-m', TRAIN_MODULES[task]]
     for key in PARAM_KEYS:
         if key in params:
             cmd += [f'--{key}', str(params[key])]
@@ -91,6 +100,18 @@ def main():
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
     log_root = args.log_dir or os.path.join('src_autotest', 'logs', timestamp)
     os.makedirs(log_root, exist_ok=True)
+    shutil.copy2(args.config, os.path.join(log_root, 'config.yaml'))
+    with open(os.path.join(log_root, 'command.txt'), 'w') as fout:
+        fout.write(' '.join(sys.argv) + '\n')
+    git_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+    git_branch = subprocess.check_output(
+        ['git', 'branch', '--show-current'], text=True
+    ).strip()
+    git_dirty = bool(subprocess.check_output(
+        ['git', 'status', '--short'], text=True
+    ).strip())
+    with open(os.path.join(log_root, 'git_commit.txt'), 'w') as fout:
+        fout.write(git_commit + '\n')
 
     summary_rows = []
 
@@ -109,6 +130,7 @@ def main():
         print(f'{"="*60}')
 
         for idx, exp in enumerate(experiments):
+            exp = dict(exp)
             eid = exp.pop('id', f'E{idx:02d}')
             params = {**defaults, **exp}
             params['group_id'] = f'{gid}/{eid}'
@@ -129,9 +151,20 @@ def main():
             summary_rows.append({
                 'tag': f'{gid}/{eid}',
                 'label': label,
+                'command': cmd,
                 'status': status,
                 'elapsed': str(elapsed),
             })
+
+    with open(os.path.join(log_root, 'run_manifest.json'), 'w') as fout:
+        json.dump({
+            'timestamp': timestamp,
+            'config': os.path.abspath(args.config),
+            'git_commit': git_commit,
+            'git_branch': git_branch,
+            'git_dirty': git_dirty,
+            'jobs': summary_rows,
+        }, fout, indent=2)
 
     summary_path = os.path.join(log_root, 'summary.txt')
     with open(summary_path, 'w') as sf:
