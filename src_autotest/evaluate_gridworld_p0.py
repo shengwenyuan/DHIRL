@@ -212,6 +212,8 @@ def matched_boundary_counts(truth_sequences, predicted_sequences, tolerance):
     predicted_count = 0
     matched_count = 0
     for truth, predicted in zip(truth_sequences, predicted_sequences):
+        truth = np.asarray(truth)
+        predicted = np.asarray(predicted)
         true_boundaries = np.flatnonzero(truth[1:] != truth[:-1]) + 1
         predicted_boundaries = np.flatnonzero(
             predicted[1:] != predicted[:-1]
