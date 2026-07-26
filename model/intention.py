@@ -90,6 +90,10 @@ class IntentionRNN(nn.Module):
             )
         if self.training:
             raise RuntimeError('candidate_action_logits requires eval mode.')
+        if self.num_layers != 1:
+            raise ValueError(
+                'candidate_action_logits currently supports one RNN layer.'
+            )
         if bs.ndim != 2 or ba.shape != bs.shape:
             raise ValueError('bs and ba must have matching (batch, time) shapes.')
         if bs.numel() == 0:
@@ -115,44 +119,70 @@ class IntentionRNN(nn.Module):
 
         batch_size, sequence_length = bs.shape
         num_actions = self.action_embed.num_embeddings
-        hidden = torch.zeros(
-            self.num_layers,
-            batch_size,
-            self.rnn_hidden_dim,
-            dtype=self.state_embed.weight.dtype,
-            device=bs.device,
+        observed_inputs = (
+            self.state_embed(bs) + self.action_embed(ba)
         )
+        if mask is None:
+            observed_rnn_out, _ = self.rnn(observed_inputs)
+        else:
+            lengths = mask.sum(dim=1)
+            observed_packed = pack_padded_sequence(
+                observed_inputs,
+                lengths.cpu(),
+                batch_first=True,
+                enforce_sorted=False,
+            )
+            observed_out_packed, _ = self.rnn(observed_packed)
+            observed_rnn_out, _ = pad_packed_sequence(
+                observed_out_packed,
+                batch_first=True,
+                total_length=sequence_length,
+            )
+        observed_logits = self.output_proj(observed_rnn_out)
         all_action_embeds = self.action_embed.weight
-        batch_indices = torch.arange(batch_size, device=bs.device)
+        input_weight = self.rnn.weight_ih_l0.to(torch.float64)
+        output_weight = self.output_proj.weight.to(torch.float64)
         candidate_logits = []
 
         for step in range(sequence_length):
-            state_embed = self.state_embed(bs[:, step])
-            candidate_inputs = (
-                state_embed[:, None, :] + all_action_embeds[None, :, :]
+            observed_hidden = observed_rnn_out[:, step, :].to(torch.float64)
+            observed_action_embed = self.action_embed(
+                ba[:, step]
+            ).to(torch.float64)
+            action_delta = (
+                all_action_embeds.to(torch.float64)[None, :, :]
+                - observed_action_embed[:, None, :]
             )
+            preactivation_delta = F.linear(
+                action_delta, input_weight, bias=None
+            )
+            tanh_delta = torch.tanh(preactivation_delta)
+            denominator = (
+                1.0 + observed_hidden[:, None, :] * tanh_delta
+            )
+            if (
+                not torch.isfinite(denominator).all()
+                or torch.any(torch.abs(denominator) < 1e-12)
+            ):
+                raise RuntimeError(
+                    'Unstable tanh action-delta replay in candidate scorer.'
+                )
+            # tanh(u + d) from h=tanh(u), keeping the observed path as the
+            # exact canonical prefix while evaluating every current action.
             candidate_hidden = (
-                hidden[:, :, None, :]
-                .expand(-1, -1, num_actions, -1)
-                .reshape(self.num_layers, batch_size * num_actions, self.rnn_hidden_dim)
-                .contiguous()
+                observed_hidden[:, None, :] + tanh_delta
+            ) / denominator
+            hidden_delta = (
+                candidate_hidden - observed_hidden[:, None, :]
             )
-            candidate_output, next_candidate_hidden = self.rnn(
-                candidate_inputs.reshape(batch_size * num_actions, 1, -1),
-                candidate_hidden,
+            logit_delta = F.linear(
+                hidden_delta, output_weight, bias=None
             )
-            step_logits = self.output_proj(candidate_output[:, 0, :]).reshape(
-                batch_size, num_actions, -1
-            )
+            step_logits = (
+                observed_logits[:, step, None, :].to(torch.float64)
+                + logit_delta
+            ).to(observed_logits.dtype)
             candidate_logits.append(step_logits)
-
-            observed_indices = batch_indices * num_actions + ba[:, step]
-            observed_hidden = next_candidate_hidden[:, observed_indices, :]
-            if mask is None:
-                hidden = observed_hidden
-            else:
-                valid = mask[:, step].reshape(1, batch_size, 1)
-                hidden = torch.where(valid, observed_hidden, hidden)
 
         return torch.stack(candidate_logits, dim=1)
     
