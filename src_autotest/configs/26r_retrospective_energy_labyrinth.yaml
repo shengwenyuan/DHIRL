@@ -1,0 +1,48 @@
+# Recreated submitted Labyrinth RNN with test-only action normalization.
+provenance:
+  purpose: formal_rebuttal
+  baseline_tag: 26r-p0-baseline-grid-lab-20260726
+
+defaults:
+  task: labyrinth
+  ll_filename: metrics.csv
+  output_dir: src_autotest/outputs/26r_retrospective_energy_v1
+  data_dir: /home/swy/U-Frei/IRL/DHIRL/data/labyrinth/data
+  num_repeats: 1
+  paired_fold_seeds: 1
+  p0_artifacts: 1
+  num_latents: 3
+  gate_mode: retrospective
+  retrospective_score_mode: action_normalized
+  model_type: IntentionRNN
+  hidden_dim: 128
+  rnn_hidden_dim: 128
+  num_layers: 1
+  dropout: 0.3
+  nhead: 4
+  lr: 0.001
+  reg_type: kl+l1
+  reg_weight: 2.22
+  kl_weight: 1.48
+  num_epochs: 3
+  loss_threshold: 0.05
+  max_iterations: 180
+
+groups:
+  labyrinth_retrospective_action_normalized_s0:
+    id: labyrinth_retrospective_action_normalized_s0
+    experiments:
+      - id: E00
+        rand_seed: 0
+
+  labyrinth_retrospective_action_normalized_s42:
+    id: labyrinth_retrospective_action_normalized_s42
+    experiments:
+      - id: E00
+        rand_seed: 42
+
+  labyrinth_retrospective_action_normalized_s2026:
+    id: labyrinth_retrospective_action_normalized_s2026
+    experiments:
+      - id: E00
+        rand_seed: 2026

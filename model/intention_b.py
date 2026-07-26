@@ -67,6 +67,80 @@ class IntentionRNN(nn.Module):
 
         return logits
 
+    def candidate_action_logits(self, bs, ba, mask=None):
+        """Evaluate every current action while advancing only the observed path."""
+        if self.gate_mode != 'retrospective':
+            raise ValueError(
+                'candidate_action_logits is defined only for the retrospective gate.'
+            )
+        if self.training:
+            raise RuntimeError('candidate_action_logits requires eval mode.')
+        if bs.ndim != 2 or ba.shape != bs.shape:
+            raise ValueError('bs and ba must have matching (batch, time) shapes.')
+        if bs.numel() == 0:
+            raise ValueError('candidate_action_logits requires non-empty inputs.')
+        if mask is not None and mask.shape != bs.shape:
+            raise ValueError('mask must match the (batch, time) input shape.')
+        if torch.any(bs < 0) or torch.any(bs >= self.state_embed.num_embeddings):
+            raise ValueError('State index is outside the embedding support.')
+        if torch.any(ba < 0) or torch.any(ba >= self.action_embed.num_embeddings):
+            raise ValueError('Action index is outside the embedding support.')
+        if mask is not None:
+            if mask.dtype != torch.bool:
+                raise ValueError('mask must have boolean dtype.')
+            lengths = mask.sum(dim=1)
+            if torch.any(lengths <= 0):
+                raise ValueError('Every sequence needs at least one valid step.')
+            prefix_mask = (
+                torch.arange(bs.shape[1], device=bs.device)[None, :]
+                < lengths[:, None]
+            )
+            if not torch.equal(mask, prefix_mask):
+                raise ValueError('mask rows must be contiguous valid prefixes.')
+
+        batch_size, sequence_length = bs.shape
+        num_actions = self.action_embed.num_embeddings
+        hidden = torch.zeros(
+            self.num_layers,
+            batch_size,
+            self.rnn_hidden_dim,
+            dtype=self.state_embed.weight.dtype,
+            device=bs.device,
+        )
+        all_action_embeds = self.action_embed.weight
+        batch_indices = torch.arange(batch_size, device=bs.device)
+        candidate_logits = []
+
+        for step in range(sequence_length):
+            state_embed = self.state_embed(bs[:, step])
+            candidate_inputs = (
+                state_embed[:, None, :] + all_action_embeds[None, :, :]
+            )
+            candidate_hidden = (
+                hidden[:, :, None, :]
+                .expand(-1, -1, num_actions, -1)
+                .reshape(self.num_layers, batch_size * num_actions, self.rnn_hidden_dim)
+                .contiguous()
+            )
+            candidate_output, next_candidate_hidden = self.rnn(
+                candidate_inputs.reshape(batch_size * num_actions, 1, -1),
+                candidate_hidden,
+            )
+            step_logits = self.output_proj(candidate_output[:, 0, :]).reshape(
+                batch_size, num_actions, -1
+            )
+            candidate_logits.append(step_logits)
+
+            observed_indices = batch_indices * num_actions + ba[:, step]
+            observed_hidden = next_candidate_hidden[:, observed_indices, :]
+            if mask is None:
+                hidden = observed_hidden
+            else:
+                valid = mask[:, step].reshape(1, batch_size, 1)
+                hidden = torch.where(valid, observed_hidden, hidden)
+
+        return torch.stack(candidate_logits, dim=1)
+
 
 class IntentionLSTM(nn.Module):
     def __init__(self, num_states, num_actions, num_latents, hidden_dim=128, rnn_hidden_dim=128, num_layers=1, dropout=0.1, gate_mode='retrospective'):

@@ -8,6 +8,10 @@ from model.intention import IntentionRNN, IntentionLSTM, IntentionTransformer
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence, pad_packed_sequence
 
 
+RETROSPECTIVE_SCORE_MODES = ('legacy', 'action_normalized')
+PARITY_ATOL = 1e-6
+
+
 
 class IAVI:
     def __init__(self, num_states, num_actions, P, expert_policy, discount, threshold=1e-3):
@@ -191,7 +195,17 @@ class HIAVI:
 
 class PGIAVI:
     def __init__(self, num_latents, num_states, num_actions, P, train_trajs, test_trajs, discount,
-                 gate_mode='retrospective', loss_threshold=1e-3, max_iterations=100):
+                 gate_mode='retrospective', loss_threshold=1e-3, max_iterations=100,
+                 retrospective_score_mode='legacy'):
+        if retrospective_score_mode not in RETROSPECTIVE_SCORE_MODES:
+            raise ValueError(
+                f'Unknown retrospective_score_mode={retrospective_score_mode!r}; '
+                f'expected one of {RETROSPECTIVE_SCORE_MODES}.'
+            )
+        if retrospective_score_mode == 'action_normalized' and gate_mode != 'retrospective':
+            raise ValueError(
+                'action_normalized retrospective scoring requires gate_mode=retrospective.'
+            )
         self.num_latents = num_latents  # K
         self.num_states = num_states
         self.num_actions = num_actions
@@ -203,6 +217,7 @@ class PGIAVI:
         self.gate_mode = gate_mode
         self.loss_threshold = loss_threshold
         self.max_iterations = max_iterations
+        self.retrospective_score_mode = retrospective_score_mode
 
         # self.intention_net = IntentionTransformer(num_states=self.num_states, 
         #                                num_actions=self.num_actions,
@@ -260,6 +275,125 @@ class PGIAVI:
                 log_pi[latent_idx, t] = log_policy[s, a]
 
         return log_pi
+
+    def get_all_action_log_pi(self, states, agents):
+        agent_log_policies = []
+        for agent in agents:
+            q = torch.as_tensor(agent.q, dtype=torch.float32)
+            log_policy = torch.log(torch.softmax(q, dim=-1) + 1e-8)
+            log_policy = log_policy - np.log1p(self.num_actions * 1e-8)
+            agent_log_policies.append(log_policy)
+        agent_log_policies = torch.stack(agent_log_policies, dim=0)
+        return agent_log_policies[:, states, :].permute(1, 2, 0)
+
+    def retrospective_action_scores(
+        self, states, actions, agents, reference_log_f, reference_log_gamma
+    ):
+        if self.retrospective_score_mode != 'action_normalized':
+            raise ValueError('Retrospective action normalization was not requested.')
+        self.target_intention_net.eval()
+        with torch.no_grad():
+            candidate_logits = self.target_intention_net.candidate_action_logits(
+                states.unsqueeze(0), actions.unsqueeze(0)
+            ).squeeze(0)
+            candidate_log_f = torch.log_softmax(candidate_logits, dim=-1)
+            gather_index = actions[:, None, None].expand(
+                -1, 1, self.num_latents
+            )
+            observed_candidate_log_f = candidate_log_f.gather(
+                1, gather_index
+            ).squeeze(1)
+            candidate_log_pi = self.get_all_action_log_pi(states, agents)
+            candidate_log_joint = (
+                candidate_log_f.to(torch.float64)
+                + candidate_log_pi.to(torch.float64)
+            )
+            candidate_log_energy = torch.logsumexp(candidate_log_joint, dim=-1)
+            log_normalizer = torch.logsumexp(candidate_log_energy, dim=-1)
+            candidate_log_probability = (
+                candidate_log_energy - log_normalizer.unsqueeze(-1)
+            )
+            observed_log_probability = candidate_log_probability.gather(
+                1, actions.unsqueeze(-1)
+            ).squeeze(-1)
+
+            observed_candidate_log_pi = candidate_log_pi.gather(
+                1, gather_index
+            ).squeeze(1)
+            observed_candidate_log_gamma = torch.log_softmax(
+                observed_candidate_log_f + observed_candidate_log_pi, dim=-1
+            )
+            finite_tensors = {
+                'candidate logits': candidate_logits,
+                'candidate gate': candidate_log_f,
+                'candidate policy': candidate_log_pi,
+                'candidate energy': candidate_log_energy,
+                'action log normalizer': log_normalizer,
+                'normalized action log probability': candidate_log_probability,
+                'reference gate': reference_log_f,
+                'reference responsibility': reference_log_gamma,
+            }
+            for name, values in finite_tensors.items():
+                if not torch.isfinite(values).all():
+                    raise RuntimeError(
+                        f'Non-finite {name} in retrospective action scorer.'
+                    )
+
+            gate_max_error = torch.max(
+                torch.abs(
+                    torch.exp(observed_candidate_log_f)
+                    - torch.exp(reference_log_f)
+                )
+            ).item()
+            responsibility_max_error = torch.max(
+                torch.abs(
+                    torch.exp(observed_candidate_log_gamma)
+                    - torch.exp(reference_log_gamma)
+                )
+            ).item()
+            normalization_max_error = torch.max(
+                torch.abs(
+                    torch.exp(candidate_log_probability).sum(dim=-1) - 1.0
+                )
+            ).item()
+            if not np.isfinite([
+                gate_max_error,
+                responsibility_max_error,
+                normalization_max_error,
+            ]).all():
+                raise RuntimeError(
+                    'Non-finite validation metric in retrospective action scorer.'
+                )
+            if gate_max_error >= PARITY_ATOL:
+                raise RuntimeError(
+                    f'Candidate gate replay error {gate_max_error:.3e} exceeds '
+                    f'{PARITY_ATOL:.1e}.'
+                )
+            if responsibility_max_error >= PARITY_ATOL:
+                raise RuntimeError(
+                    'Candidate responsibility replay error '
+                    f'{responsibility_max_error:.3e} exceeds {PARITY_ATOL:.1e}.'
+                )
+            if normalization_max_error >= PARITY_ATOL:
+                raise RuntimeError(
+                    'Retrospective action normalization error '
+                    f'{normalization_max_error:.3e} exceeds {PARITY_ATOL:.1e}.'
+                )
+            if torch.max(observed_log_probability).item() > PARITY_ATOL:
+                raise RuntimeError('A normalized action log probability exceeded zero.')
+
+        return {
+            'step_log_score': observed_log_probability.cpu().numpy(),
+            'log_normalizer': log_normalizer.cpu().numpy(),
+            'candidate_log_energy': candidate_log_energy.cpu().numpy(),
+            'observed_gate': torch.exp(observed_candidate_log_f).cpu().numpy(),
+            'observed_responsibility': (
+                torch.exp(observed_candidate_log_gamma).cpu().numpy()
+            ),
+            'gate_max_error': gate_max_error,
+            'responsibility_max_error': responsibility_max_error,
+            'normalization_max_error': normalization_max_error,
+        }
 
     def encode_session_traj(self, traj):
         states = torch.tensor([s for s, a, ns in traj], dtype=torch.long)
@@ -412,12 +546,27 @@ class PGIAVI:
             fs = []
             responsibilities = []
             step_log_scores = []
+            normalized_step_log_scores = []
+            retrospective_log_normalizers = []
+            candidate_log_energies = []
+            candidate_observed_gates = []
+            candidate_observed_responsibilities = []
+            scorer_gate_errors = []
+            scorer_responsibility_errors = []
+            scorer_normalization_errors = []
             lls = []
             for traj_idx, traj in enumerate(trajs):
                 states, actions = self.encode_session_traj(traj)
                 log_pi = self.get_log_pi(traj, agents)
                 with torch.no_grad():
                     log_p_gamma, log_f, log_p_joint = self.intention_mapping(states, actions, log_pi)
+                    if (
+                        ds == 'test'
+                        and self.retrospective_score_mode == 'action_normalized'
+                    ):
+                        normalized = self.retrospective_action_scores(
+                            states, actions, agents, log_f, log_p_gamma
+                        )
                     log_p_gamma = log_p_gamma.numpy()
                     log_f = log_f.numpy()
                     log_p_joint = log_p_joint.numpy()
@@ -426,6 +575,24 @@ class PGIAVI:
                 step_score = logsumexp(log_p_joint, axis=-1)
                 step_log_scores.append(step_score)
                 lls.append(np.mean(step_score))
+                if (
+                    ds == 'test'
+                    and self.retrospective_score_mode == 'action_normalized'
+                ):
+                    normalized_step_log_scores.append(normalized['step_log_score'])
+                    retrospective_log_normalizers.append(normalized['log_normalizer'])
+                    candidate_log_energies.append(normalized['candidate_log_energy'])
+                    candidate_observed_gates.append(normalized['observed_gate'])
+                    candidate_observed_responsibilities.append(
+                        normalized['observed_responsibility']
+                    )
+                    scorer_gate_errors.append(normalized['gate_max_error'])
+                    scorer_responsibility_errors.append(
+                        normalized['responsibility_max_error']
+                    )
+                    scorer_normalization_errors.append(
+                        normalized['normalization_max_error']
+                    )
             ll[ds] = float(np.mean(lls))
             ll[f'{ds}_traj_mean'] = ll[ds]
             ll[f'{ds}_step_mean'] = float(np.mean(np.concatenate(step_log_scores)))
@@ -434,6 +601,51 @@ class PGIAVI:
             f[f'gate_{ds}'] = fs
             f[f'responsibility_{ds}'] = responsibilities
             f[f'step_log_score_{ds}'] = step_log_scores
+            if (
+                ds == 'test'
+                and self.retrospective_score_mode == 'action_normalized'
+            ):
+                normalized_flat = np.concatenate(normalized_step_log_scores)
+                normalizer_flat = np.concatenate(retrospective_log_normalizers)
+                ll['retrospective_normalized_score_type'] = (
+                    'retrospective_action_conditional_log_probability'
+                )
+                ll['test_retrospective_normalized_traj_mean'] = float(
+                    np.mean([np.mean(scores) for scores in normalized_step_log_scores])
+                )
+                ll['test_retrospective_normalized_step_mean'] = float(
+                    np.mean(normalized_flat)
+                )
+                ll['test_retrospective_normalized_steps'] = int(
+                    normalized_flat.size
+                )
+                ll['test_retrospective_log_normalizer_mean'] = float(
+                    np.mean(normalizer_flat)
+                )
+                ll['test_retrospective_fraction_z_gt_one'] = float(
+                    np.mean(normalizer_flat > 0.0)
+                )
+                ll['legacy_policy_log_row_normalizer'] = float(
+                    np.log1p(self.num_actions * 1e-8)
+                )
+                ll['candidate_gate_max_error'] = float(max(scorer_gate_errors))
+                ll['candidate_responsibility_max_error'] = float(
+                    max(scorer_responsibility_errors)
+                )
+                ll['candidate_normalization_max_error'] = float(
+                    max(scorer_normalization_errors)
+                )
+                f['step_log_score_retrospective_normalized_test'] = (
+                    normalized_step_log_scores
+                )
+                f['retrospective_log_normalizer_test'] = (
+                    retrospective_log_normalizers
+                )
+                f['candidate_log_energy_test'] = candidate_log_energies
+                f['candidate_observed_gate_test'] = candidate_observed_gates
+                f['candidate_observed_responsibility_test'] = (
+                    candidate_observed_responsibilities
+                )
 
         return ll, f, agents
 
